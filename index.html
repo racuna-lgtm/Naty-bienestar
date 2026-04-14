@@ -183,7 +183,18 @@ input.nota{min-height:40px}
 .sum-card{flex-shrink:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:10px 14px;text-align:center;min-width:70px}
 .sum-val{font-family:'DM Serif Display',serif;font-size:22px;color:var(--text)}
 .sum-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
-/* Correlation badge */
+/* Ciclo calendar */
+.ciclo-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:8px}
+.ciclo-day{aspect-ratio:1;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;background:var(--surface2);color:var(--text3);position:relative}
+.ciclo-day.ciclo-start{background:var(--pink);color:#fff}
+.ciclo-day.ciclo-flow{background:rgba(236,72,153,.3);color:var(--pink2)}
+.ciclo-day.ciclo-predicted{background:rgba(236,72,153,.1);border:1px dashed rgba(236,72,153,.4);color:var(--pink2)}
+.ciclo-day.ciclo-fertile{background:rgba(16,185,129,.15);color:#6ee7b7}
+.ciclo-day.today-mark{outline:2px solid var(--violet2);outline-offset:1px}
+.ciclo-legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;font-size:10px;color:var(--text3)}
+.ciclo-legend span{display:flex;align-items:center;gap:4px}
+.ciclo-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+
 .corr-card{background:rgba(155,93,229,.08);border:1px solid rgba(155,93,229,.2);border-radius:var(--rs);padding:10px 13px;margin-bottom:8px;font-size:13px;color:var(--text2);display:flex;gap:8px;align-items:flex-start}
 </style>
 </head>
@@ -225,6 +236,7 @@ input.nota{min-height:40px}
     <button class="tab-btn" data-tab="historial"><span class="ti">📊</span>Historial</button>
     <button class="tab-btn" data-tab="salud"><span class="ti">🏥</span>Salud</button>
     <button class="tab-btn" data-tab="reporte"><span class="ti">📄</span>Reporte</button>
+    <button class="tab-btn" data-tab="config"><span class="ti">⚙️</span>Config</button>
   </div>
 
   <!-- HOME -->
@@ -495,6 +507,68 @@ input.nota{min-height:40px}
     <div id="pdf-status" style="text-align:center;font-size:12px;color:var(--text3);margin-top:8px;display:none">Generando PDF...</div>
   </div>
 
+  <!-- CONFIG -->
+  <div class="screen" id="tab-config">
+    <div class="sh">Configuración<small>Notificaciones, ciclo y preferencias</small></div>
+
+    <!-- Notificaciones -->
+    <div class="card">
+      <div class="card-label"><div class="dot6" style="background:var(--violet)"></div>Recordatorio diario</div>
+      <div style="font-size:13px;color:var(--text3);margin-bottom:12px">La app te enviará una notificación para que no olvides tu check-in. Solo funciona si la app está instalada en tu celular.</div>
+      <div class="toggle-row">
+        <span class="ttext">Activar recordatorio</span>
+        <div class="toggle" id="notif-toggle" onclick="toggleNotif()"></div>
+      </div>
+      <div id="notif-time-row" style="margin-top:12px;display:none">
+        <div style="font-size:13px;color:var(--text3);margin-bottom:6px">Hora del recordatorio</div>
+        <input type="time" id="notif-time" value="08:00" class="nota" style="min-height:40px;width:140px"
+          onchange="saveNotifTime()">
+      </div>
+      <div id="notif-status" style="font-size:12px;margin-top:8px;color:var(--text3)"></div>
+    </div>
+
+    <!-- Ciclo menstrual -->
+    <div class="card">
+      <div class="card-label"><div class="dot6" style="background:var(--pink)"></div>Ciclo menstrual</div>
+      <div style="font-size:13px;color:var(--text3);margin-bottom:12px">Registra el inicio de tu ciclo para hacer seguimiento. Con el DIU Asertia el flujo puede ser irregular — más razón para registrarlo.</div>
+      <div class="num-row" style="margin-top:0">
+        <button class="num-btn" onclick="chNum('ciclo_dur',-1)">−</button>
+        <div><div class="num-val" id="v-ciclo_dur">28</div><div class="num-lbl">días promedio</div></div>
+        <button class="num-btn" onclick="chNum('ciclo_dur',1)">+</button>
+      </div>
+      <button class="save-btn" style="font-size:14px;padding:10px;margin-top:12px" onclick="registrarCiclo()">
+        📅 Registrar inicio de ciclo hoy
+      </button>
+      <div id="ciclo-calendar" style="margin-top:14px"></div>
+    </div>
+
+    <!-- Gráfico de peso -->
+    <div class="card">
+      <div class="card-label"><div class="dot6" style="background:var(--pink)"></div>Evolución de peso</div>
+      <div id="peso-chart-wrap" style="position:relative">
+        <svg id="peso-svg" style="width:100%;height:140px;display:block"></svg>
+        <div class="tooltip" id="peso-tip"></div>
+      </div>
+      <div id="peso-chart-empty" style="text-align:center;color:var(--text3);font-size:13px;padding:20px 0;display:none">
+        Aún no hay registros de peso. Agrégalos desde la pestaña Salud.
+      </div>
+      <div id="peso-stats" style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap"></div>
+    </div>
+
+    <!-- Exportar / importar backup -->
+    <div class="card">
+      <div class="card-label"><div class="dot6" style="background:var(--blue)"></div>Backup de datos</div>
+      <div style="font-size:13px;color:var(--text3);margin-bottom:10px">Exporta todos tus datos como archivo JSON como respaldo adicional.</div>
+      <div style="display:flex;gap:8px">
+        <button onclick="exportBackup()" style="flex:1;padding:10px;border-radius:10px;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.3);color:var(--blue);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif">⬇ Exportar JSON</button>
+        <label style="flex:1;padding:10px;border-radius:10px;background:rgba(155,93,229,.1);border:1px solid var(--violet);color:var(--violet2);font-size:13px;cursor:pointer;text-align:center">
+          ⬆ Importar JSON
+          <input type="file" accept=".json" onchange="importBackup(event)" style="display:none">
+        </label>
+      </div>
+    </div>
+  </div>
+
 <!-- EPISODE MODAL -->
 <div class="modal" id="ep-modal">
   <div class="modal-header">
@@ -695,7 +769,10 @@ function initApp() {
 
   buildScales();
   setupChips();
-  resetFormState(); // limpiar estado del formulario al iniciar
+  resetFormState();
+  if(!D.ciclos) D.ciclos = [];
+  numV.ciclo_dur = parseInt(localStorage.getItem('naty_ciclo_dur') || '28');
+  document.getElementById('v-ciclo_dur').textContent = numV.ciclo_dur;
 
   // Solo cargar demo si no hay datos locales Y no hay conexión
   if(!D.checkins.length && !online) seedDemo();
@@ -704,6 +781,7 @@ function initApp() {
   renderHistorial();
   renderEpisodios();
   renderExamenes();
+  initNotif();
 
   if(D.pesos.length) {
     numV.peso = D.pesos[0].kg;
@@ -719,6 +797,7 @@ function initApp() {
       if(btn.dataset.tab==='historial') renderHistorial();
       if(btn.dataset.tab==='reporte') buildPreview();
       if(btn.dataset.tab==='checkin') loadTodayCheckin();
+      if(btn.dataset.tab==='config') { renderCiclo(); renderPesoChart(); }
     });
   });
 }
@@ -1734,8 +1813,252 @@ function buildPDF() {
   showToast('✓ PDF descargado');
 }
 
-function openModal(id){document.getElementById(id).classList.add('open');}
-function closeModal(id){document.getElementById(id).classList.remove('open');}
+// ====== NOTIFICACIONES ======
+let notifTimer = null;
+
+function toggleNotif() {
+  const toggle = document.getElementById('notif-toggle');
+  const isOn = toggle.classList.contains('on');
+  if(!isOn) {
+    // Pedir permiso
+    if(!('Notification' in window)) {
+      document.getElementById('notif-status').textContent = '⚠ Tu navegador no soporta notificaciones.';
+      return;
+    }
+    Notification.requestPermission().then(perm => {
+      if(perm === 'granted') {
+        toggle.classList.add('on');
+        document.getElementById('notif-time-row').style.display = 'block';
+        localStorage.setItem('naty_notif', '1');
+        scheduleNotif();
+        document.getElementById('notif-status').textContent = '✓ Recordatorio activado';
+        showToast('✓ Recordatorio activado');
+      } else {
+        document.getElementById('notif-status').textContent = '⚠ Permiso denegado. Ve a Ajustes > Safari > Notificaciones para activarlas.';
+      }
+    });
+  } else {
+    toggle.classList.remove('on');
+    document.getElementById('notif-time-row').style.display = 'none';
+    localStorage.removeItem('naty_notif');
+    if(notifTimer) clearTimeout(notifTimer);
+    document.getElementById('notif-status').textContent = 'Recordatorio desactivado';
+    showToast('Recordatorio desactivado');
+  }
+}
+
+function saveNotifTime() {
+  const t = document.getElementById('notif-time').value;
+  localStorage.setItem('naty_notif_time', t);
+  scheduleNotif();
+  showToast('✓ Hora guardada: ' + t);
+}
+
+function scheduleNotif() {
+  if(notifTimer) clearTimeout(notifTimer);
+  const t = localStorage.getItem('naty_notif_time') || '08:00';
+  const [hh, mm] = t.split(':').map(Number);
+  const now = new Date();
+  const next = new Date();
+  next.setHours(hh, mm, 0, 0);
+  if(next <= now) next.setDate(next.getDate() + 1);
+  const ms = next - now;
+  notifTimer = setTimeout(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const done = D.checkins.find(c => c.date === today);
+    if(!done && Notification.permission === 'granted') {
+      new Notification('Naty Bienestar 💜', {
+        body: '¿Cómo amaneciste hoy? Completa tu check-in matinal.',
+        icon: 'https://racuna-lgtm.github.io/Naty-bienestar/icon.png'
+      });
+    }
+    scheduleNotif(); // reagendar para mañana
+  }, ms);
+}
+
+function initNotif() {
+  const on = localStorage.getItem('naty_notif');
+  const t = localStorage.getItem('naty_notif_time') || '08:00';
+  document.getElementById('notif-time').value = t;
+  if(on && Notification.permission === 'granted') {
+    document.getElementById('notif-toggle').classList.add('on');
+    document.getElementById('notif-time-row').style.display = 'block';
+    document.getElementById('notif-status').textContent = '✓ Recordatorio activo a las ' + t;
+    scheduleNotif();
+  }
+}
+
+// ====== CICLO MENSTRUAL ======
+numV.ciclo_dur = parseInt(localStorage.getItem('naty_ciclo_dur') || '28');
+
+function registrarCiclo() {
+  const today = new Date().toISOString().split('T')[0];
+  if(!D.ciclos) D.ciclos = [];
+  if(D.ciclos.includes(today)) { showToast('Ya registraste inicio hoy'); return; }
+  D.ciclos.unshift(today);
+  if(D.ciclos.length > 24) D.ciclos = D.ciclos.slice(0, 24);
+  saveLocal();
+  renderCiclo();
+  showToast('✓ Inicio de ciclo registrado');
+}
+
+function renderCiclo() {
+  const el = document.getElementById('ciclo-calendar');
+  if(!el) return;
+  if(!D.ciclos || !D.ciclos.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text3)">Aún no hay ciclos registrados. Toca el botón cuando comience tu período.</div>';
+    return;
+  }
+  const dur = numV.ciclo_dur || 28;
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // Mostrar los últimos 42 días (6 semanas)
+  const days = [];
+  for(let i = 41; i >= 0; i--) {
+    const d = new Date(today); d.setDate(d.getDate() - i);
+    days.push(d);
+  }
+
+  // Calcular días de flujo (5 días desde cada inicio registrado)
+  const flowSet = new Set();
+  const startSet = new Set();
+  D.ciclos.forEach(s => {
+    const sd = new Date(s + 'T12:00:00');
+    startSet.add(s);
+    for(let i = 0; i < 5; i++) {
+      const fd = new Date(sd); fd.setDate(fd.getDate() + i);
+      flowSet.add(fd.toISOString().split('T')[0]);
+    }
+  });
+
+  // Próximo ciclo predicho desde el último inicio
+  const lastStart = new Date(D.ciclos[0] + 'T12:00:00');
+  const nextStart = new Date(lastStart); nextStart.setDate(nextStart.getDate() + dur);
+  const predictedSet = new Set();
+  const fertileSet = new Set();
+  for(let i = 0; i < 5; i++) {
+    const pd = new Date(nextStart); pd.setDate(pd.getDate() + i);
+    predictedSet.add(pd.toISOString().split('T')[0]);
+  }
+  // Ventana fértil: ~días 11-17 del ciclo (desde último inicio)
+  for(let i = 10; i <= 16; i++) {
+    const fd = new Date(lastStart); fd.setDate(fd.getDate() + i);
+    fertileSet.add(fd.toISOString().split('T')[0]);
+  }
+
+  const wdays = ['L','M','X','J','V','S','D'];
+  let html = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:6px">';
+  wdays.forEach(w => html += `<div style="text-align:center;font-size:9px;color:var(--text3);padding:2px">${w}</div>`);
+  html += '</div><div class="ciclo-grid">';
+
+  // Offset para empezar en lunes
+  const firstDay = days[0];
+  const offset = (firstDay.getDay() + 6) % 7;
+  for(let i = 0; i < offset; i++) html += '<div></div>';
+
+  days.forEach(d => {
+    const ds = d.toISOString().split('T')[0];
+    const isToday = d.getTime() === today.getTime();
+    let cls = 'ciclo-day';
+    let title = d.getDate();
+    if(startSet.has(ds)) cls += ' ciclo-start';
+    else if(flowSet.has(ds)) cls += ' ciclo-flow';
+    else if(predictedSet.has(ds)) cls += ' ciclo-predicted';
+    else if(fertileSet.has(ds)) cls += ' ciclo-fertile';
+    if(isToday) cls += ' today-mark';
+    html += `<div class="${cls}">${title}</div>`;
+  });
+  html += '</div>';
+
+  // Leyenda
+  const daysToNext = Math.round((nextStart - today) / 86400000);
+  html += `<div style="font-size:12px;color:var(--text3);margin-top:8px">`;
+  if(daysToNext > 0) html += `Próximo ciclo estimado en <strong style="color:var(--pink2)">${daysToNext} días</strong> (${nextStart.toLocaleDateString('es-CL')})`;
+  else html += `<span style="color:var(--pink2)">El ciclo predicho debería haber comenzado</span>`;
+  html += `</div>`;
+  html += `<div class="ciclo-legend">
+    <span><div class="ciclo-dot" style="background:var(--pink)"></div>Inicio</span>
+    <span><div class="ciclo-dot" style="background:rgba(236,72,153,.5)"></div>Flujo</span>
+    <span><div class="ciclo-dot" style="background:rgba(236,72,153,.2);border:1px dashed var(--pink)"></div>Predicho</span>
+    <span><div class="ciclo-dot" style="background:rgba(16,185,129,.3)"></div>Fértil</span>
+  </div>`;
+
+  el.innerHTML = html;
+}
+
+// Guardar duración del ciclo
+const origChNum = chNum;
+function chNum(f, d) {
+  const limits = {sueno_h:[0,14,.5], agua:[0,20,1], peso:[30,200,.1], ciclo_dur:[14,60,1]};
+  const [mn,mx] = limits[f] || [0,100,1];
+  numV[f] = Math.round((+(numV[f]||0) + d) * 10) / 10;
+  numV[f] = Math.max(mn, Math.min(mx, numV[f]));
+  const el = document.getElementById('v-' + f);
+  if(el) el.textContent = (f==='peso' && numV[f]===0) ? '--' : numV[f];
+  if(f === 'ciclo_dur') { localStorage.setItem('naty_ciclo_dur', numV[f]); renderCiclo(); }
+}
+
+// ====== GRÁFICO DE PESO ======
+function renderPesoChart() {
+  const wrap = document.getElementById('peso-chart-wrap');
+  const empty = document.getElementById('peso-chart-empty');
+  const statsEl = document.getElementById('peso-stats');
+  if(!D.pesos || D.pesos.length < 2) {
+    if(wrap) wrap.style.display = 'none';
+    if(empty) empty.style.display = 'block';
+    return;
+  }
+  if(wrap) wrap.style.display = 'block';
+  if(empty) empty.style.display = 'none';
+
+  const data = [...D.pesos].reverse(); // cronológico
+  drawSparkline('peso-svg','peso-tip', data.map(p=>({...p, sueno_h:p.kg, date:p.date})),
+    [{field:'sueno_h', color:'#ec4899'}]);
+
+  // Stats
+  const kgs = data.map(p=>p.kg);
+  const inicio = kgs[0], actual = kgs[kgs.length-1];
+  const diff = (actual - inicio).toFixed(1);
+  const min = Math.min(...kgs), max = Math.max(...kgs);
+  statsEl.innerHTML = `
+    <div class="sum-card"><div class="sum-val" style="color:var(--pink)">${actual}</div><div class="sum-lbl">kg actual</div></div>
+    <div class="sum-card"><div class="sum-val" style="color:${diff<=0?'var(--green)':'var(--red)'}">${diff>0?'+':''}${diff}</div><div class="sum-lbl">variación</div></div>
+    <div class="sum-card"><div class="sum-val" style="color:var(--green)">${min}</div><div class="sum-lbl">mínimo</div></div>
+    <div class="sum-card"><div class="sum-val">${max}</div><div class="sum-lbl">máximo</div></div>
+  `;
+}
+
+// ====== BACKUP JSON ======
+function exportBackup() {
+  const json = JSON.stringify(D, null, 2);
+  const blob = new Blob([json], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'naty-bienestar-backup-' + new Date().toISOString().split('T')[0] + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✓ Backup exportado');
+}
+
+function importBackup(e) {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const imported = JSON.parse(ev.target.result);
+      if(!imported.checkins) { showToast('⚠ Archivo inválido'); return; }
+      if(!confirm(`¿Importar backup? Se reemplazarán ${imported.checkins.length} check-ins y ${imported.episodios?.length||0} episodios.`)) return;
+      D = imported;
+      saveLocal();
+      renderHome(); renderHistorial(); renderEpisodios(); renderExamenes(); renderCiclo(); renderPesoChart();
+      showToast('✓ Backup importado');
+    } catch(err) { showToast('⚠ Error al leer el archivo'); }
+  };
+  reader.readAsText(file);
+}
+
 
 // ====== TOAST ======
 function showToast(msg){
