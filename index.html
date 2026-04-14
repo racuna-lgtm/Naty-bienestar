@@ -437,6 +437,13 @@ input.nota{min-height:40px}
     <button class="ep-btn" onclick="openEp('ctrl')"><span class="ep-icon">📋</span><div><span class="ep-lbl">Control médico</span><span class="ep-sub">Especialidad, notas, indicaciones</span></div></button>
 
     <div id="ep-list" style="margin-top:8px"></div>
+
+    <!-- Zona de peligro -->
+    <div class="card" style="margin-top:16px;border-color:rgba(239,68,68,.2)">
+      <div class="card-label" style="color:var(--red)">⚠ Zona de datos</div>
+      <div style="font-size:13px;color:var(--text3);margin-bottom:10px">Si tienes datos de prueba o quieres empezar de cero, borra todo aquí. Esta acción elimina también los datos en Supabase.</div>
+      <button onclick="clearAllData()" style="width:100%;padding:10px;border-radius:10px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif">🗑 Borrar todos los datos</button>
+    </div>
   </div>
 </div>
 
@@ -688,22 +695,21 @@ function initApp() {
 
   buildScales();
   setupChips();
+  resetFormState(); // limpiar estado del formulario al iniciar
 
-  // seed demo data if empty
-  if(!D.checkins.length) seedDemo();
+  // Solo cargar demo si no hay datos locales Y no hay conexión
+  if(!D.checkins.length && !online) seedDemo();
 
   renderHome();
   renderHistorial();
   renderEpisodios();
   renderExamenes();
 
-  // peso display
   if(D.pesos.length) {
     numV.peso = D.pesos[0].kg;
     document.getElementById('v-peso').textContent = numV.peso.toFixed(1);
   }
 
-  // tabs
   document.querySelectorAll('.tab-btn').forEach(btn=>{
     btn.addEventListener('click',()=>{
       document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -712,8 +718,63 @@ function initApp() {
       document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
       if(btn.dataset.tab==='historial') renderHistorial();
       if(btn.dataset.tab==='reporte') buildPreview();
+      if(btn.dataset.tab==='checkin') loadTodayCheckin();
     });
   });
+}
+
+// Resetear estado del formulario de check-in
+function resetFormState() {
+  togV={}; chipV={};
+  numV.sueno_h=7; numV.agua=6;
+  const vh=document.getElementById('v-sueno_h');
+  const va=document.getElementById('v-agua');
+  if(vh) vh.textContent='7';
+  if(va) va.textContent='6';
+  document.querySelectorAll('.toggle.on').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.sdot.sel').forEach(s=>s.className='sdot');
+  document.querySelectorAll('.chip.sel').forEach(c=>c.classList.remove('sel'));
+  const nl=document.getElementById('nota-libre');
+  if(nl) nl.value='';
+}
+
+// Cargar el check-in de hoy si existe (para edición)
+function loadTodayCheckin() {
+  const today=new Date().toISOString().split('T')[0];
+  const td=D.checkins.find(c=>c.date===today);
+  if(!td) { resetFormState(); return; }
+  // Precargar valores en el formulario
+  chipV={...td};
+  numV.sueno_h=td.sueno_h||7; numV.agua=td.agua||6;
+  const vh=document.getElementById('v-sueno_h');
+  const va=document.getElementById('v-agua');
+  if(vh) vh.textContent=numV.sueno_h;
+  if(va) va.textContent=numV.agua;
+  // Toggles
+  ['desperto','magnesio','analgesico','domperidona','dcabeza','dcorporal','bochorno','airel','social','deposicion','dep_dif','hinchazon','fibra','dishidr'].forEach(f=>{
+    const el=document.querySelector(`.toggle[data-f="${f}"]`);
+    if(el&&td[f]) { el.classList.add('on'); togV[f]=true; }
+  });
+  // Escalas
+  ['animo','energia','ansiedad','concentracion','sueno_cal','apetito','productiv'].forEach(f=>{
+    if(!td[f]) return;
+    const container=document.querySelector(`.scale-dots[data-f="${f}"]`);
+    if(!container) return;
+    const inv=!!container.dataset.inv;
+    container.querySelectorAll('.sdot').forEach((s,idx)=>{
+      s.className='sdot';
+      if(idx<td[f]) s.classList.add('sel',inv?'inv':'','v'+(idx+1));
+    });
+  });
+  // Chips single
+  ['semag','ejercicio','alcohol','dish_int'].forEach(f=>{
+    if(!td[f]) return;
+    const el=document.querySelector(`.chip[data-f="${f}"][data-v="${td[f]}"]`);
+    if(el) el.classList.add('sel');
+  });
+  // Nota
+  const nl=document.getElementById('nota-libre');
+  if(nl&&td.nota) nl.value=td.nota;
 }
 
 // ====== SEED DEMO (solo local, no sube a Supabase) ======
@@ -753,14 +814,15 @@ function buildScales() {
   document.querySelectorAll('.scale-dots').forEach(c=>{
     const f=c.dataset.f, inv=!!c.dataset.inv;
     for(let i=1;i<=5;i++){
+      const val=i; // fix closure bug
       const d=document.createElement('button');
-      d.className='sdot'; d.textContent=i; d.dataset.val=i;
+      d.className='sdot'; d.textContent=val; d.dataset.val=val;
       d.addEventListener('click',()=>{
         c.querySelectorAll('.sdot').forEach((s,idx)=>{
           s.className='sdot';
-          if(idx<i){ s.classList.add('sel',inv?'inv':'','v'+(idx+1)); }
+          if(idx<val){ s.classList.add('sel',inv?'inv':'','v'+(idx+1)); }
         });
-        chipV[f]=i;
+        chipV[f]=val;
       });
       c.appendChild(d);
     }
@@ -796,7 +858,8 @@ function chNum(f,d) {
 
 // ====== SAVE CHECK-IN ======
 async function saveCheckin() {
-  const today=new Date().toISOString().split('T')[0];
+  const today = window._editingDate || new Date().toISOString().split('T')[0];
+  window._editingDate = null; // reset
   const entry={
     date:today,
     animo:chipV.animo||null, energia:chipV.energia||null,
@@ -1039,7 +1102,7 @@ function renderHistorial(){
     ?corrs.map(c=>`<div class="corr-card"><span>🔗</span><span>${c}</span></div>`).join('')
     :'';
 
-  // Entry list
+  // Entry list con editar y borrar
   const dnames=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
   const sc=v=>['#ef4444','#f97316','#eab308','#84cc16','#22c55e'][v-1]||'var(--text3)';
   document.getElementById('histlist').innerHTML=D.checkins.slice(0,histPeriod).map((c,idx)=>{
@@ -1051,8 +1114,8 @@ function renderHistorial(){
     if(c.dishidr) tags.push(`<span class="htag sym">dishidrosis</span>`);
     if(c.nota) tags.push(`<span class="htag note">nota</span>`);
     const detailId=`hd-${idx}`;
-    return `<div class="hist-day" onclick="toggleHistDetail('${detailId}')">
-      <div class="hist-header">
+    return `<div class="hist-day">
+      <div class="hist-header" onclick="toggleHistDetail('${detailId}')">
         <span class="hist-date">${dnames[d.getDay()]} ${d.getDate()}/${d.getMonth()+1}</span>
         <div class="hist-scores">
           <span class="hscore"><div class="hdot" style="background:${sc(c.animo)}"></div>${c.animo||'—'}</span>
@@ -1060,7 +1123,7 @@ function renderHistorial(){
           <span class="hscore">😴${c.sueno_h}h</span>
         </div>
       </div>
-      ${tags.length?`<div class="hist-tags">${tags.join('')}</div>`:''}
+      ${tags.length?`<div class="hist-tags" onclick="toggleHistDetail('${detailId}')">${tags.join('')}</div>`:''}
       <div class="hist-detail" id="${detailId}">
         ${c.ansiedad?`<div class="hd-row"><span>Ansiedad</span><span>${c.ansiedad}/5</span></div>`:''}
         ${c.concentracion?`<div class="hd-row"><span>Concentración</span><span>${c.concentracion}/5</span></div>`:''}
@@ -1071,12 +1134,100 @@ function renderHistorial(){
         ${c.desperto?`<div class="hd-row"><span>Desperté temprano</span><span>Sí</span></div>`:''}
         ${c.alcohol&&c.alcohol!=='nada'?`<div class="hd-row"><span>Alcohol</span><span>${c.alcohol}</span></div>`:''}
         ${c.nota?`<div class="hd-row"><span>Nota</span><span style="color:var(--blue)">${c.nota}</span></div>`:''}
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button onclick="editCheckin('${c.date}')" style="flex:1;padding:7px;border-radius:8px;background:rgba(155,93,229,.2);border:1px solid var(--violet);color:var(--violet2);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif">✏ Editar</button>
+          <button onclick="deleteCheckin('${c.date}')" style="flex:1;padding:7px;border-radius:8px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif">🗑 Borrar</button>
+        </div>
       </div>
     </div>`;
   }).join('');
 }
 function toggleHistDetail(id){
   document.getElementById(id).classList.toggle('open');
+}
+function editCheckin(date) {
+  // Ir al tab de check-in con los datos precargados
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelector('.tab-btn[data-tab="checkin"]').classList.add('active');
+  document.getElementById('tab-checkin').classList.add('active');
+  // Cargar datos de esa fecha
+  const entry=D.checkins.find(c=>c.date===date);
+  if(!entry) return;
+  resetFormState();
+  chipV={...entry};
+  numV.sueno_h=entry.sueno_h||7; numV.agua=entry.agua||6;
+  const vh=document.getElementById('v-sueno_h');
+  const va=document.getElementById('v-agua');
+  if(vh) vh.textContent=numV.sueno_h;
+  if(va) va.textContent=numV.agua;
+  ['desperto','magnesio','analgesico','domperidona','dcabeza','dcorporal','bochorno','airel','social','deposicion','dep_dif','hinchazon','fibra','dishidr'].forEach(f=>{
+    const el=document.querySelector(`.toggle[data-f="${f}"]`);
+    if(el&&entry[f]){el.classList.add('on');togV[f]=true;}
+  });
+  ['animo','energia','ansiedad','concentracion','sueno_cal','apetito','productiv'].forEach(f=>{
+    if(!entry[f]) return;
+    const container=document.querySelector(`.scale-dots[data-f="${f}"]`);
+    if(!container) return;
+    const inv=!!container.dataset.inv;
+    container.querySelectorAll('.sdot').forEach((s,idx)=>{
+      s.className='sdot';
+      if(idx<entry[f]) s.classList.add('sel',inv?'inv':'','v'+(idx+1));
+    });
+  });
+  ['semag','ejercicio','alcohol','dish_int'].forEach(f=>{
+    if(!entry[f]) return;
+    const el=document.querySelector(`.chip[data-f="${f}"][data-v="${entry[f]}"]`);
+    if(el) el.classList.add('sel');
+  });
+  const nl=document.getElementById('nota-libre');
+  if(nl&&entry.nota) nl.value=entry.nota;
+  // Cambiar fecha del check-in al día que se edita
+  const d=new Date(date+'T12:00:00');
+  const ms=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const ds=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  document.getElementById('ci-date').textContent=`Editando: ${ds[d.getDay()]} ${d.getDate()} de ${ms[d.getMonth()]}`;
+  // Guardar qué fecha se está editando
+  window._editingDate = date;
+  showToast('Editando registro de '+d.getDate()+'/'+( d.getMonth()+1));
+  document.getElementById('tab-checkin').scrollTop=0;
+}
+
+async function deleteCheckin(date) {
+  if(!confirm(`¿Borrar el registro del ${date}? Esta acción no se puede deshacer.`)) return;
+  D.checkins=D.checkins.filter(c=>c.date!==date);
+  saveLocal();
+  renderHome();
+  renderHistorial();
+  showToast('🗑 Registro borrado');
+  if(online) await sbFetch('checkins','DELETE',null,`?date=eq.${date}`);
+}
+
+async function deleteEpisodio(idx) {
+  if(!confirm('¿Borrar este episodio?')) return;
+  const ep=D.episodios[idx];
+  D.episodios.splice(idx,1);
+  saveLocal();
+  renderEpisodios();
+  showToast('🗑 Episodio borrado');
+  if(online&&ep?.id) await sbFetch('episodios','DELETE',null,`?id=eq.${ep.id}`);
+}
+
+async function clearAllData() {
+  if(!confirm('⚠️ ¿Borrar TODOS los datos incluyendo los de prueba? Esto no se puede deshacer.')) return;
+  D={checkins:[],episodios:[],pesos:[],examenes:[]};
+  localStorage.removeItem('naty_bienev3');
+  localStorage.removeItem('naty_bienev2');
+  if(online) {
+    await Promise.all([
+      sbFetch('checkins','DELETE',null,'?id=neq.00000000-0000-0000-0000-000000000000'),
+      sbFetch('episodios','DELETE',null,'?id=neq.00000000-0000-0000-0000-000000000000'),
+      sbFetch('pesos','DELETE',null,'?id=neq.00000000-0000-0000-0000-000000000000'),
+      sbFetch('examenes','DELETE',null,'?id=neq.00000000-0000-0000-0000-000000000000'),
+    ]);
+  }
+  renderHome(); renderHistorial(); renderEpisodios(); renderExamenes();
+  showToast('✓ Datos borrados');
 }
 
 // ====== EPISODIOS ======
@@ -1181,13 +1332,16 @@ function renderEpisodios(){
   if(!D.episodios.length){el.innerHTML='';return;}
   const icons={itu:'🦠',cand:'🌡️',gine:'🌸',spm:'🌙',sex:'💜',ctrl:'📋'};
   el.innerHTML='<div style="font-size:12px;color:var(--text3);margin-bottom:8px">Episodios registrados</div>'+
-    D.episodios.slice(0,15).map(e=>{
+    D.episodios.slice(0,15).map((e,idx)=>{
       const d=new Date(e.date);
       const tags=Array.isArray(e.data?.sintomas)?e.data.sintomas:[];
       return `<div class="hist-day">
         <div class="hist-header">
           <span class="hist-date">${icons[e.type]||''} ${epCfg[e.type]?.title.replace(/[^\w\sÁÉÍÓÚáéíóúñÑ]/g,'').trim()||e.type}</span>
-          <span style="font-size:12px;color:var(--text3)">${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}</span>
+          <span style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:12px;color:var(--text3)">${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}</span>
+            <button onclick="deleteEpisodio(${idx})" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">✕</button>
+          </span>
         </div>
         ${tags.length?`<div class="hist-tags">${tags.map(t=>`<span class="htag sym">${t}</span>`).join('')}</div>`:''}
         ${e.data?.notas?`<div style="font-size:12px;color:var(--text3);margin-top:6px">${e.data.notas}</div>`:''}
