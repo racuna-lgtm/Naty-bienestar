@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#1a0533">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Naty · Bienestar</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f0520;
+  --bg2: #1a0b30;
+  --surface: rgba(255,255,255,0.06);
+  --surface2: rgba(255,255,255,0.10);
+  --border: rgba(255,255,255,0.10);
+  --border2: rgba(255,255,255,0.18);
+  --text: #f0eaff;
+  --text2: rgba(240,234,255,0.65);
+  --text3: rgba(240,234,255,0.38);
+  --violet: #9b5de5;
+  --violet2: #c084fc;
+  --pink: #ec4899;
+  --pink2: #f9a8d4;
+  --green: #10b981;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --blue: #60a5fa;
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* Background orbs */
+.bg-orb {
+  position: fixed; border-radius: 50%; pointer-events: none; z-index: 0;
+  filter: blur(80px); opacity: 0.25;
+}
+.bg-orb-1 { width: 400px; height: 400px; background: #7c3aed; top: -100px; right: -100px; }
+.bg-orb-2 { width: 300px; height: 300px; background: #db2777; bottom: 100px; left: -80px; }
+.bg-orb-3 { width: 200px; height: 200px; background: #0891b2; top: 50%; left: 50%; }
+
+/* App shell */
+#app { position: relative; z-index: 1; height: 100vh; display: flex; flex-direction: column; max-width: 430px; margin: 0 auto; }
+
+/* Header */
+.app-header {
+  padding: 16px 20px 12px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.header-logo {
+  font-family: 'DM Serif Display', serif;
+  font-size: 20px; color: var(--text);
+  display: flex; align-items: center; gap: 8px;
+}
+.header-logo span { color: var(--violet2); font-style: italic; }
+.header-date {
+  font-size: 12px; color: var(--text3); text-transform: capitalize;
+}
+.header-pin-btn {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--surface); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 16px;
+}
+
+/* Tab bar */
+.tab-bar {
+  display: flex; padding: 0 16px 8px; gap: 4px; flex-shrink: 0;
+}
+.tab-btn {
+  flex: 1; padding: 7px 4px; border-radius: 8px;
+  background: transparent; border: none; cursor: pointer;
+  font-family: 'DM Sans', sans-serif; font-size: 10px; font-weight: 500;
+  color: var(--text3); transition: all .2s; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.tab-btn .tab-icon { font-size: 16px; }
+.tab-btn.active { background: var(--surface2); color: var(--violet2); }
+
+/* Scroll content */
+.screen { 
+  flex: 1; overflow-y: auto; padding: 0 16px 100px;
+  display: none;
+}
+.screen.active { display: block; }
+.screen::-webkit-scrollbar { display: none; }
+
+/* Section headers */
+.section-header {
+  padding: 16px 0 10px;
+  font-family: 'DM Serif Display', serif;
+  font-size: 22px; color: var(--text);
+}
+.section-sub { font-size: 13px; color: var(--text3); margin-top: 2px; }
+
+/* Cards */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 10px;
+  backdrop-filter: blur(10px);
+}
+.card-label {
+  font-size: 12px; font-weight: 500; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--text3); margin-bottom: 12px;
+  display: flex; align-items: center; gap: 6px;
+}
+.card-label-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+}
+
+/* Scale 1-5 */
+.scale-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.scale-row:last-child { margin-bottom: 0; }
+.scale-label { font-size: 14px; color: var(--text2); flex: 1; }
+.scale-dots { display: flex; gap: 6px; }
+.scale-dot {
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 1.5px solid var(--border2);
+  background: transparent; cursor: pointer;
+  transition: all .15s; font-size: 11px; font-weight: 500;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text3);
+}
+.scale-dot:hover { border-color: var(--violet2); color: var(--violet2); }
+.scale-dot.selected { border-color: transparent; color: white; }
+.scale-dot.selected.v1 { background: #ef4444; }
+.scale-dot.selected.v2 { background: #f97316; }
+.scale-dot.selected.v3 { background: #eab308; }
+.scale-dot.selected.v4 { background: #84cc16; }
+.scale-dot.selected.v5 { background: #22c55e; }
+
+/* Toggle chips */
+.chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
+.chip {
+  padding: 6px 13px; border-radius: 20px;
+  border: 1.5px solid var(--border2);
+  background: transparent; cursor: pointer;
+  font-family: 'DM Sans', sans-serif; font-size: 13px;
+  color: var(--text2); transition: all .15s;
+}
+.chip:hover { border-color: var(--violet); color: var(--violet2); }
+.chip.selected { background: rgba(155,93,229,0.25); border-color: var(--violet); color: var(--violet2); }
+.chip.selected.pink { background: rgba(236,72,153,0.2); border-color: var(--pink); color: var(--pink2); }
+.chip.selected.green { background: rgba(16,185,129,0.2); border-color: var(--green); color: #6ee7b7; }
+.chip.selected.red { background: rgba(239,68,68,0.2); border-color: var(--red); color: #fca5a5; }
+.chip.selected.amber { background: rgba(245,158,11,0.2); border-color: var(--amber); color: #fcd34d; }
+
+/* Number input */
+.num-row {
+  display: flex; align-items: center; gap: 12px; margin-top: 4px;
+}
+.num-btn {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--surface2); border: 1px solid var(--border2);
+  cursor: pointer; font-size: 18px; color: var(--text2);
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.num-btn:hover { background: rgba(155,93,229,0.2); }
+.num-val {
+  font-family: 'DM Serif Display', serif;
+  font-size: 28px; min-width: 40px; text-align: center;
+  color: var(--text);
+}
+.num-label { font-size: 13px; color: var(--text3); }
+
+/* Toggle switch */
+.toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 0;
+}
+.toggle-row + .toggle-row { margin-top: 10px; }
+.toggle-text { font-size: 14px; color: var(--text2); }
+.toggle {
+  width: 44px; height: 24px; border-radius: 12px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  cursor: pointer; position: relative; transition: all .2s;
+  flex-shrink: 0;
+}
+.toggle.on { background: var(--violet); border-color: var(--violet); }
+.toggle::after {
+  content: ''; position: absolute; top: 3px; left: 3px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: rgba(255,255,255,0.5); transition: all .2s;
+}
+.toggle.on::after { left: 23px; background: white; }
+
+/* Textarea */
+.nota-input {
+  width: 100%; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 10px 12px; color: var(--text);
+  font-family: 'DM Sans', sans-serif; font-size: 14px;
+  resize: none; margin-top: 8px;
+  min-height: 70px;
+}
+.nota-input::placeholder { color: var(--text3); }
+.nota-input:focus { outline: none; border-color: var(--violet); }
+
+/* Save button */
+.save-btn {
+  width: 100%; padding: 15px;
+  background: linear-gradient(135deg, var(--violet), var(--pink));
+  border: none; border-radius: var(--radius);
+  color: white; font-family: 'DM Serif Display', serif;
+  font-size: 18px; cursor: pointer; margin-top: 12px;
+  transition: all .2s; letter-spacing: .02em;
+}
+.save-btn:hover { opacity: .9; transform: translateY(-1px); }
+.save-btn:active { transform: translateY(0); }
+
+/* Optional section */
+.optional-toggle {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 0; cursor: pointer; color: var(--text3);
+  font-size: 13px; border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+.optional-toggle .arrow { transition: transform .2s; font-style: normal; }
+.optional-toggle.open .arrow { transform: rotate(90deg); }
+.optional-section { display: none; }
+.optional-section.open { display: block; }
+
+/* ---- DASHBOARD ---- */
+.greeting {
+  font-family: 'DM Serif Display', serif;
+  font-size: 26px; line-height: 1.2; margin-bottom: 4px;
+}
+.greeting em { color: var(--violet2); font-style: italic; }
+.today-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 20px;
+  font-size: 12px; font-weight: 500;
+  margin-bottom: 16px;
+}
+.today-badge.done { background: rgba(16,185,129,.15); color: #6ee7b7; border: 1px solid rgba(16,185,129,.3); }
+.today-badge.pending { background: rgba(245,158,11,.15); color: #fcd34d; border: 1px solid rgba(245,158,11,.3); }
+
+/* Stat grid */
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px;
+}
+.stat-icon { font-size: 20px; margin-bottom: 6px; }
+.stat-val {
+  font-family: 'DM Serif Display', serif;
+  font-size: 28px; color: var(--text); line-height: 1;
+}
+.stat-name { font-size: 11px; color: var(--text3); margin-top: 3px; text-transform: uppercase; letter-spacing: .05em; }
+
+/* Mini bar chart */
+.mini-chart { display: flex; align-items: flex-end; gap: 4px; height: 40px; margin: 10px 0 4px; }
+.mini-bar {
+  flex: 1; border-radius: 3px 3px 0 0; min-height: 4px;
+  transition: height .3s;
+}
+.chart-labels { display: flex; gap: 4px; }
+.chart-label { flex: 1; font-size: 9px; color: var(--text3); text-align: center; }
+
+/* Alert */
+.alert-card {
+  border-radius: var(--radius-sm);
+  padding: 10px 13px; margin-bottom: 8px;
+  display: flex; align-items: flex-start; gap: 8px;
+  font-size: 13px;
+}
+.alert-card.warn { background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.2); color: #fcd34d; }
+.alert-card.info { background: rgba(96,165,250,.1); border: 1px solid rgba(96,165,250,.2); color: var(--blue); }
+
+/* ---- HISTORIAL ---- */
+.hist-day {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px; margin-bottom: 8px;
+  cursor: pointer; transition: all .15s;
+}
+.hist-day:hover { border-color: var(--border2); }
+.hist-day-header { display: flex; align-items: center; justify-content: space-between; }
+.hist-day-date { font-size: 13px; color: var(--text2); }
+.hist-day-scores { display: flex; gap: 8px; }
+.hist-score { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text3); }
+.hist-dot { width: 8px; height: 8px; border-radius: 50%; }
+.hist-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.hist-tag {
+  font-size: 10px; padding: 2px 8px; border-radius: 10px;
+  background: rgba(155,93,229,.15); color: var(--violet2);
+}
+.hist-tag.symptom { background: rgba(239,68,68,.15); color: #fca5a5; }
+.hist-tag.exercise { background: rgba(16,185,129,.15); color: #6ee7b7; }
+
+/* ---- EPISODIOS ---- */
+.ep-btn {
+  width: 100%; padding: 14px; margin-bottom: 8px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); cursor: pointer;
+  display: flex; align-items: center; gap: 12px;
+  color: var(--text2); font-family: 'DM Sans', sans-serif;
+  font-size: 14px; text-align: left; transition: all .15s;
+}
+.ep-btn:hover { border-color: var(--border2); background: var(--surface2); }
+.ep-icon { font-size: 24px; flex-shrink: 0; }
+.ep-label { font-size: 14px; color: var(--text); }
+.ep-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
+
+/* PIN screen */
+#pin-screen {
+  position: fixed; inset: 0; z-index: 100;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 20px;
+}
+.pin-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 28px; text-align: center;
+}
+.pin-title em { color: var(--violet2); font-style: italic; }
+.pin-dots { display: flex; gap: 12px; }
+.pin-dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid var(--border2); background: transparent;
+  transition: all .15s;
+}
+.pin-dot.filled { background: var(--violet2); border-color: var(--violet2); }
+.pin-keypad { display: grid; grid-template-columns: repeat(3, 64px); gap: 10px; }
+.pin-key {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: var(--surface); border: 1px solid var(--border);
+  font-family: 'DM Serif Display', serif; font-size: 22px;
+  color: var(--text); cursor: pointer; transition: all .15s;
+}
+.pin-key:hover { background: var(--surface2); }
+.pin-key:active { transform: scale(.95); }
+.pin-key.del { font-size: 16px; font-family: 'DM Sans', sans-serif; }
+.pin-hint { font-size: 12px; color: var(--text3); }
+
+/* Save success */
+.save-success {
+  position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+  background: rgba(16,185,129,.9); color: white;
+  padding: 10px 20px; border-radius: 20px;
+  font-size: 14px; font-weight: 500;
+  opacity: 0; transition: opacity .3s; pointer-events: none;
+  backdrop-filter: blur(10px); z-index: 50;
+}
+.save-success.show { opacity: 1; }
+
+/* Week pills */
+.week-row { display: flex; gap: 6px; margin-bottom: 12px; }
+.week-pill {
+  flex: 1; padding: 8px 4px; border-radius: 10px;
+  text-align: center; cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  transition: all .15s;
+}
+.week-pill .wd { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; }
+.week-pill .wn { font-size: 15px; font-weight: 500; margin: 2px 0; }
+.week-pill .wi { font-size: 12px; color: var(--text3); }
+.week-pill.has-data { border-color: rgba(155,93,229,.3); background: rgba(155,93,229,.1); }
+.week-pill.has-data .wi { color: var(--violet2); }
+.week-pill.today { border-color: var(--violet); }
+.week-pill.today .wn { color: var(--violet2); }
+</style>
+</head>
+<body>
+
+<div class="bg-orb bg-orb-1"></div>
+<div class="bg-orb bg-orb-2"></div>
+<div class="bg-orb bg-orb-3"></div>
+
+<!-- PIN Screen -->
+<div id="pin-screen">
+  <div class="pin-title">Naty<br><em>Bienestar</em></div>
+  <div class="pin-dots" id="pin-dots">
+    <div class="pin-dot"></div><div class="pin-dot"></div>
+    <div class="pin-dot"></div><div class="pin-dot"></div>
+  </div>
+  <div class="pin-keypad" id="pin-keypad">
+    <button class="pin-key" data-k="1">1</button>
+    <button class="pin-key" data-k="2">2</button>
+    <button class="pin-key" data-k="3">3</button>
+    <button class="pin-key" data-k="4">4</button>
+    <button class="pin-key" data-k="5">5</button>
+    <button class="pin-key" data-k="6">6</button>
+    <button class="pin-key" data-k="7">7</button>
+    <button class="pin-key" data-k="8">8</button>
+    <button class="pin-key" data-k="9">9</button>
+    <button class="pin-key del" data-k="del">⌫</button>
+    <button class="pin-key" data-k="0">0</button>
+    <button class="pin-key del" data-k="ok">OK</button>
+  </div>
+  <div class="pin-hint" id="pin-hint">Ingresa tu PIN (primera vez: elige 4 dígitos)</div>
+</div>
+
+<!-- App -->
+<div id="app" style="display:none">
+  <div class="app-header">
+    <div class="header-logo">Naty <span>Bienestar</span></div>
+    <div style="text-align:right">
+      <div id="header-date" class="header-date"></div>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="home">
+      <span class="tab-icon">🏠</span>Inicio
+    </button>
+    <button class="tab-btn" data-tab="checkin">
+      <span class="tab-icon">✨</span>Check-in
+    </button>
+    <button class="tab-btn" data-tab="historial">
+      <span class="tab-icon">📊</span>Historial
+    </button>
+    <button class="tab-btn" data-tab="episodios">
+      <span class="tab-icon">🏥</span>Salud
+    </button>
+  </div>
+
+  <!-- HOME -->
+  <div class="screen active" id="tab-home">
+    <div class="section-header">
+      <div class="greeting" id="home-greeting">Buenos días, <em>Naty</em></div>
+    </div>
+    <div id="home-badge"></div>
+    <div id="home-alerts"></div>
+    <div class="week-row" id="week-row"></div>
+    <div class="stat-grid" id="stat-grid"></div>
+    <div class="card" id="home-chart-card" style="display:none">
+      <div class="card-label"><div class="card-label-dot" style="background:var(--violet)"></div>Ánimo esta semana</div>
+      <div class="mini-chart" id="animo-chart"></div>
+      <div class="chart-labels" id="animo-labels"></div>
+    </div>
+    <div class="card" id="home-chart-energia" style="display:none">
+      <div class="card-label"><div class="card-label-dot" style="background:var(--pink)"></div>Energía esta semana</div>
+      <div class="mini-chart" id="energia-chart"></div>
+    </div>
+  </div>
+
+  <!-- CHECK-IN -->
+  <div class="screen" id="tab-checkin">
+    <div class="section-header">Check-in matinal<div class="section-sub" id="checkin-date"></div></div>
+
+    <!-- Escalas principales -->
+    <div class="card">
+      <div class="card-label"><div class="card-label-dot" style="background:var(--violet)"></div>Cómo amanecí hoy</div>
+      <div class="scale-row"><span class="scale-label">😴 Ánimo</span><div class="scale-dots" data-field="animo"></div></div>
+      <div class="scale-row"><span class="scale-label">⚡ Energía</span><div class="scale-dots" data-field="energia"></div></div>
+      <div class="scale-row"><span class="scale-label">😰 Ansiedad</span><div class="scale-dots" data-field="ansiedad"></div></div>
+      <div class="scale-row"><span class="scale-label">🧠 Concentración</span><div class="scale-dots" data-field="concentracion"></div></div>
+    </div>
+
+    <!-- Sueño -->
+    <div class="card">
+      <div class="card-label"><div class="card-label-dot" style="background:var(--blue)"></div>Sueño</div>
+      <div class="scale-row"><span class="scale-label">Calidad</span><div class="scale-dots" data-field="sueno_calidad"></div></div>
+      <div class="num-row" style="margin-top:10px">
+        <button class="num-btn" onclick="changeNum('sueno_horas',-0.5)">−</button>
+        <div>
+          <div class="num-val" id="val-sueno_horas">7</div>
+          <div class="num-label">horas dormidas</div>
+        </div>
+        <button class="num-btn" onclick="changeNum('sueno_horas',0.5)">+</button>
+      </div>
+      <div style="margin-top:12px">
+        <div class="toggle-row">
+          <span class="toggle-text">Desperté antes de hora</span>
+          <div class="toggle" data-field="sueno_desperto" onclick="toggleField(this)"></div>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-text">Tomé magnesio</span>
+          <div class="toggle" data-field="magnesio" onclick="toggleField(this)"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Síntomas semaglutida -->
+    <div class="card">
+      <div class="card-label"><div class="card-label-dot" style="background:var(--amber)"></div>Semaglutida</div>
+      <div style="font-size:13px;color:var(--text3);margin-bottom:8px">¿Síntomas hoy?</div>
+      <div class="chips">
+        <button class="chip" data-field="semag_sintomas" data-val="ninguno">Ninguno ✓</button>
+        <button class="chip" data-field="semag_sintomas" data-val="nauseas">Náuseas</button>
+        <button class="chip" data-field="semag_sintomas" data-val="cefalea">Dolor de cabeza</button>
+        <button class="chip" data-field="semag_sintomas" data-val="fatiga">Fatiga</button>
+        <button class="chip" data-field="semag_sintomas" data-val="mareo">Mareo</button>
+      </div>
+      <div style="margin-top:12px">
+        <div class="toggle-row">
+          <span class="toggle-text">Tomé analgésico</span>
+          <div class="toggle" data-field="analgesico" onclick="toggleField(this)"></div>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-text">Tomé domperidona</span>
+          <div class="toggle" data-field="domperidona" onclick="toggleField(this)"></div>
+        </div>
+      </div>
+      <div class="scale-row" style="margin-top:14px">
+        <span class="scale-label">Apetito / saciedad</span>
+        <div class="scale-dots" data-field="apetito"></div>
+      </div>
+    </div>
+
+    <!-- Cuerpo -->
+    <div class="card">
+      <div class="card-label"><div class="card-label-dot" style="background:var(--green)"></div>Cuerpo</div>
+      <div class="toggle-row">
+        <span class="toggle-text">Dolor de cabeza</span>
+        <div class="toggle" data-field="dolor_cabeza" onclick="toggleField(this)"></div>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-text">Dolor corporal / articular</span>
+        <div class="toggle" data-field="dolor_corporal" onclick="toggleField(this)"></div>
+      </div>
+      <div class="toggle-row" style="margin-top:10px">
+        <span class="toggle-text">Sensación de calor / bochorno</span>
+        <div class="toggle" data-field="bochorno" onclick="toggleField(this)"></div>
+      </div>
+    </div>
+
+    <!-- Ejercicio -->
+    <div class="card">
+      <div class="card-label"><div class="card-label-dot" style="background:var(--green)"></div>Movimiento ayer</div>
+      <div class="chips">
+        <button class="chip" data-field="ejercicio" data-val="ninguno">Ninguno</button>
+        <button class="chip" data-field="ejercicio" data-val="caminata">Caminata</button>
+        <button class="chip" data-field="ejercicio" data-val="pilates">Pilates</button>
+        <button class="chip" data-field="ejercicio" data-val="otro">Otro</button>
+      </div>
+      <div class="scale-row" style="margin-top:14px">
+        <span class="scale-label">🌿 Al aire libre hoy</span>
+        <div class="toggle" data-field="aire_libre" onclick="toggleField(this)"></div>
+      </div>
+    </div>
+
+    <!-- Hábitos -->
+    <div class="card">
+      <div class="card-label"><div class="card-label-dot" style="background:var(--blue)"></div>Hábitos</div>
+      <div class="num-row">
+        <button class="num-btn" onclick="changeNum('agua',-1)">−</button>
+        <div>
+          <div class="num-val" id="val-agua">6</div>
+          <div class="num-label">vasos de agua</div>
+        </div>
+        <button class="num-btn" onclick="changeNum('agua',1)">+</button>
+      </div>
+      <div style="margin-top:14px;font-size:13px;color:var(--text3);margin-bottom:6px">Alcohol ayer</div>
+      <div class="chips">
+        <button class="chip" data-field="alcohol" data-val="nada">Nada</button>
+        <button class="chip" data-field="alcohol" data-val="una_copa">Una copa</button>
+        <button class="chip" data-field="alcohol" data-val="mas">Más de una</button>
+      </div>
+      <div style="margin-top:12px">
+        <div class="toggle-row">
+          <span class="toggle-text">Conexión social hoy</span>
+          <div class="toggle" data-field="social" onclick="toggleField(this)"></div>
+        </div>
+        <div class="scale-row" style="margin-top:12px">
+          <span class="scale-label">Productividad percibida</span>
+          <div class="scale-dots" data-field="productividad"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Opcional: digestión -->
+    <div class="card">
+      <div class="optional-toggle" id="opt-digestion" onclick="toggleOptional('digestion')">
+        <span class="arrow">▶</span> Digestión (opcional)
+      </div>
+      <div class="optional-section" id="opt-section-digestion">
+        <div class="toggle-row">
+          <span class="toggle-text">Deposición hoy</span>
+          <div class="toggle" data-field="deposicion" onclick="toggleField(this)"></div>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-text">Dificultad / esfuerzo</span>
+          <div class="toggle" data-field="deposicion_dif" onclick="toggleField(this)"></div>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-text">Hinchazón abdominal</span>
+          <div class="toggle" data-field="hinchazon" onclick="toggleField(this)"></div>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-text">Tomé fibra</span>
+          <div class="toggle" data-field="fibra" onclick="toggleField(this)"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Opcional: dishidrosis -->
+    <div class="card">
+      <div class="optional-toggle" id="opt-dishidrosis" onclick="toggleOptional('dishidrosis')">
+        <span class="arrow">▶</span> Dishidrosis en manos (opcional)
+      </div>
+      <div class="optional-section" id="opt-section-dishidrosis">
+        <div class="toggle-row">
+          <span class="toggle-text">Presencia hoy</span>
+          <div class="toggle" data-field="dishidrosis" onclick="toggleField(this)"></div>
+        </div>
+        <div style="margin-top:10px;font-size:13px;color:var(--text3);margin-bottom:6px">Intensidad</div>
+        <div class="chips">
+          <button class="chip" data-field="dishidrosis_int" data-val="leve">Leve</button>
+          <button class="chip" data-field="dishidrosis_int" data-val="moderada">Moderada</button>
+          <button class="chip" data-field="dishidrosis_int" data-val="intensa">Intensa</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Nota libre -->
+    <div class="card">
+      <div class="card-label">📝 Nota del día</div>
+      <textarea class="nota-input" id="nota-libre" placeholder="¿Algo importante que quieras recordar?"></textarea>
+    </div>
+
+    <button class="save-btn" onclick="saveCheckin()">Guardar check-in ✓</button>
+  </div>
+
+  <!-- HISTORIAL -->
+  <div class="screen" id="tab-historial">
+    <div class="section-header">Historial<div class="section-sub">Tus últimos registros</div></div>
+    <div id="historial-list"></div>
+    <div id="historial-empty" style="text-align:center;color:var(--text3);padding:40px 0;display:none">
+      Aún no hay registros.<br>¡Empieza con tu primer check-in!
+    </div>
+  </div>
+
+  <!-- SALUD / EPISODIOS -->
+  <div class="screen" id="tab-episodios">
+    <div class="section-header">Salud<div class="section-sub">Eventos y controles médicos</div></div>
+
+    <div class="card" style="margin-bottom:10px">
+      <div class="card-label"><div class="card-label-dot" style="background:var(--pink)"></div>Peso semanal</div>
+      <div class="num-row">
+        <button class="num-btn" onclick="changeNum('peso_actual',-0.1)">−</button>
+        <div>
+          <div class="num-val" id="val-peso_actual">--</div>
+          <div class="num-label">kg</div>
+        </div>
+        <button class="num-btn" onclick="changeNum('peso_actual',0.1)">+</button>
+      </div>
+      <button class="save-btn" style="margin-top:10px;font-size:14px;padding:10px" onclick="savePeso()">Registrar peso</button>
+    </div>
+
+    <div style="font-size:12px;color:var(--text3);margin-bottom:8px;padding:0 2px">Registrar episodio de salud</div>
+
+    <button class="ep-btn" onclick="openEpisodio('itu')">
+      <span class="ep-icon">🦠</span>
+      <div><div class="ep-label">Infección urinaria</div><div class="ep-sub">Síntomas, tratamiento, resolución</div></div>
+    </button>
+    <button class="ep-btn" onclick="openEpisodio('candidiasis')">
+      <span class="ep-icon">🌡️</span>
+      <div><div class="ep-label">Candidiasis</div><div class="ep-sub">Flujo, picazón, ardor, tratamiento</div></div>
+    </button>
+    <button class="ep-btn" onclick="openEpisodio('ginecologico')">
+      <span class="ep-icon">🌸</span>
+      <div><div class="ep-label">Síntoma ginecológico</div><div class="ep-sub">Ardor, molestia, spotting, ciclo</div></div>
+    </button>
+    <button class="ep-btn" onclick="openEpisodio('spm')">
+      <span class="ep-icon">🌙</span>
+      <div><div class="ep-label">Síntomas premenstruales</div><div class="ep-sub">Irritabilidad, hinchazón, ánimo</div></div>
+    </button>
+    <button class="ep-btn" onclick="openEpisodio('relaciones')">
+      <span class="ep-icon">💜</span>
+      <div><div class="ep-label">Salud sexual</div><div class="ep-sub">Bienestar, molestia, lubricación</div></div>
+    </button>
+    <button class="ep-btn" onclick="openEpisodio('control')">
+      <span class="ep-icon">📋</span>
+      <div><div class="ep-label">Control médico</div><div class="ep-sub">Especialidad, notas, fecha</div></div>
+    </button>
+
+    <div class="section-header" style="margin-top:16px;font-size:16px">Datos fijos</div>
+    <div class="card">
+      <div class="card-label">DIU Asertia</div>
+      <div style="font-size:14px;color:var(--text2)">Insertado: noviembre 2024</div>
+      <div style="font-size:14px;color:var(--text2)">Vencimiento: noviembre 2029</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:6px">PAP: noviembre 2024 · Mamografía: 2025</div>
+    </div>
+
+    <div id="episodios-list" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<!-- Episode modal -->
+<div id="ep-modal" style="display:none;position:fixed;inset:0;z-index:90;background:rgba(15,5,32,.95);overflow-y:auto;padding:20px 16px 80px">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+    <button onclick="closeEpisodio()" style="background:var(--surface);border:1px solid var(--border);border-radius:50%;width:36px;height:36px;color:var(--text);font-size:18px;cursor:pointer">←</button>
+    <div id="ep-modal-title" style="font-family:'DM Serif Display',serif;font-size:20px"></div>
+  </div>
+  <div id="ep-modal-content"></div>
+  <button class="save-btn" onclick="saveEpisodio()">Guardar episodio</button>
+</div>
+
+<div class="save-success" id="save-toast">✓ Guardado</div>
+
+<script>
+// ---- STATE ----
+let pinEntry = '';
+let pinSet = null;
+let unlocked = false;
+const numVals = { sueno_horas: 7, agua: 6, peso_actual: 0 };
+const toggleVals = {};
+const chipVals = {};
+const STATE_KEY = 'naty_bienestar_v1';
+let appData = { checkins: [], episodios: [], pesos: [] };
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STATE_KEY);
+    if (raw) appData = JSON.parse(raw);
+    pinSet = localStorage.getItem('naty_pin');
+  } catch(e) {}
+}
+function saveData() {
+  localStorage.setItem(STATE_KEY, JSON.stringify(appData));
+}
+
+// ---- PIN ----
+loadData();
+
+document.getElementById('pin-keypad').addEventListener('click', e => {
+  const btn = e.target.closest('.pin-key');
+  if (!btn) return;
+  const k = btn.dataset.k;
+  if (k === 'del') { pinEntry = pinEntry.slice(0,-1); }
+  else if (k === 'ok') { checkPin(); return; }
+  else if (pinEntry.length < 4) { pinEntry += k; }
+  updatePinDots();
+  if (pinEntry.length === 4) setTimeout(checkPin, 100);
+});
+
+function updatePinDots() {
+  document.querySelectorAll('.pin-dot').forEach((d,i) => {
+    d.classList.toggle('filled', i < pinEntry.length);
+  });
+}
+
+function checkPin() {
+  if (!pinSet) {
+    if (pinEntry.length === 4) {
+      localStorage.setItem('naty_pin', pinEntry);
+      pinSet = pinEntry;
+      unlock();
+    }
+  } else {
+    if (pinEntry === pinSet) { unlock(); }
+    else {
+      document.getElementById('pin-hint').textContent = 'PIN incorrecto, intenta de nuevo';
+      pinEntry = '';
+      updatePinDots();
+    }
+  }
+}
+
+function unlock() {
+  unlocked = true;
+  document.getElementById('pin-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  initApp();
+}
+
+// ---- APP INIT ----
+function initApp() {
+  const now = new Date();
+  const days = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  const months = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  document.getElementById('header-date').textContent = `${days[now.getDay()]} ${now.getDate()} de ${months[now.getMonth()]}`;
+  document.getElementById('checkin-date').textContent = `${days[now.getDay()]} ${now.getDate()} de ${months[now.getMonth()]}`;
+
+  const hour = now.getHours();
+  const greet = hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches';
+  document.getElementById('home-greeting').innerHTML = `${greet}, <em>Naty</em>`;
+
+  buildScales();
+  renderHome();
+  renderHistorial();
+  renderEpisodios();
+
+  // Tabs
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  // Chips
+  document.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const field = chip.dataset.field;
+      const val = chip.dataset.val;
+      const singleFields = ['ejercicio','alcohol','dishidrosis_int','semag_sintomas'];
+      if (singleFields.includes(field)) {
+        document.querySelectorAll(`.chip[data-field="${field}"]`).forEach(c => c.classList.remove('selected','pink','green','red','amber'));
+        chip.classList.add('selected');
+      } else {
+        chip.classList.toggle('selected');
+      }
+      chipVals[field] = val;
+    });
+  });
+}
+
+function buildScales() {
+  document.querySelectorAll('.scale-dots').forEach(container => {
+    const field = container.dataset.field;
+    for (let i = 1; i <= 5; i++) {
+      const dot = document.createElement('button');
+      dot.className = `scale-dot`;
+      dot.textContent = i;
+      dot.dataset.val = i;
+      dot.dataset.field = field;
+      dot.addEventListener('click', () => {
+        container.querySelectorAll('.scale-dot').forEach((d,idx) => {
+          d.className = 'scale-dot';
+          if (idx < i) { d.classList.add('selected','v'+(idx+1)); }
+        });
+        chipVals[field] = i;
+      });
+      container.appendChild(dot);
+    }
+  });
+}
+
+function changeNum(field, delta) {
+  numVals[field] = (numVals[field] || 0) + delta;
+  if (field === 'agua') numVals[field] = Math.max(0, Math.min(20, numVals[field]));
+  if (field === 'sueno_horas') numVals[field] = Math.max(0, Math.min(14, numVals[field]));
+  if (field === 'peso_actual') numVals[field] = Math.max(30, Math.min(200, +numVals[field].toFixed(1)));
+  const el = document.getElementById('val-' + field);
+  if (el) el.textContent = field === 'peso_actual' && numVals[field] === 0 ? '--' : numVals[field];
+}
+
+function toggleField(el) {
+  el.classList.toggle('on');
+  toggleVals[el.dataset.field] = el.classList.contains('on');
+}
+
+function toggleOptional(id) {
+  const toggle = document.getElementById('opt-' + id);
+  const section = document.getElementById('opt-section-' + id);
+  toggle.classList.toggle('open');
+  section.classList.toggle('open');
+}
+
+// ---- SAVE CHECK-IN ----
+function saveCheckin() {
+  const today = new Date().toISOString().split('T')[0];
+  const entry = {
+    date: today,
+    ts: Date.now(),
+    animo: chipVals.animo || null,
+    energia: chipVals.energia || null,
+    ansiedad: chipVals.ansiedad || null,
+    concentracion: chipVals.concentracion || null,
+    sueno_calidad: chipVals.sueno_calidad || null,
+    sueno_horas: numVals.sueno_horas,
+    sueno_desperto: toggleVals.sueno_desperto || false,
+    magnesio: toggleVals.magnesio || false,
+    semag_sintomas: chipVals.semag_sintomas || null,
+    analgesico: toggleVals.analgesico || false,
+    domperidona: toggleVals.domperidona || false,
+    apetito: chipVals.apetito || null,
+    dolor_cabeza: toggleVals.dolor_cabeza || false,
+    dolor_corporal: toggleVals.dolor_corporal || false,
+    bochorno: toggleVals.bochorno || false,
+    ejercicio: chipVals.ejercicio || null,
+    aire_libre: toggleVals.aire_libre || false,
+    agua: numVals.agua,
+    alcohol: chipVals.alcohol || null,
+    social: toggleVals.social || false,
+    productividad: chipVals.productividad || null,
+    deposicion: toggleVals.deposicion || false,
+    deposicion_dif: toggleVals.deposicion_dif || false,
+    hinchazon: toggleVals.hinchazon || false,
+    fibra: toggleVals.fibra || false,
+    dishidrosis: toggleVals.dishidrosis || false,
+    dishidrosis_int: chipVals.dishidrosis_int || null,
+    nota: document.getElementById('nota-libre').value.trim()
+  };
+  // remove duplicate for today
+  appData.checkins = appData.checkins.filter(c => c.date !== today);
+  appData.checkins.unshift(entry);
+  saveData();
+  showToast('✓ Check-in guardado');
+  renderHome();
+  renderHistorial();
+}
+
+function savePeso() {
+  if (numVals.peso_actual <= 30) return;
+  appData.pesos.unshift({ date: new Date().toISOString().split('T')[0], kg: numVals.peso_actual });
+  saveData();
+  showToast('✓ Peso registrado');
+}
+
+// ---- HOME ----
+function renderHome() {
+  const today = new Date().toISOString().split('T')[0];
+  const todayData = appData.checkins.find(c => c.date === today);
+  const badge = document.getElementById('home-badge');
+  badge.innerHTML = todayData
+    ? '<div class="today-badge done">✓ Check-in completado hoy</div>'
+    : '<div class="today-badge pending">⏰ Check-in pendiente</div>';
+
+  // Alerts
+  const alerts = [];
+  const last7 = appData.checkins.slice(0,7);
+  const avgAnimo = last7.filter(c => c.animo).reduce((a,c) => a+Number(c.animo), 0) / (last7.filter(c=>c.animo).length || 1);
+  if (last7.length >= 3 && avgAnimo <= 2.5) alerts.push({ type:'warn', msg:'Tu ánimo promedio ha estado bajo esta semana. ¿Cómo estás?' });
+  const noCheckin = !appData.checkins.find(c => c.date >= new Date(Date.now()-2*86400000).toISOString().split('T')[0]);
+  if (appData.checkins.length && noCheckin) alerts.push({ type:'info', msg:'No has registrado en 2+ días.' });
+
+  const alertsEl = document.getElementById('home-alerts');
+  alertsEl.innerHTML = alerts.map(a => `<div class="alert-card ${a.type}">${a.msg}</div>`).join('');
+
+  // Week pills
+  const weekEl = document.getElementById('week-row');
+  const ds = ['D','L','M','X','J','V','S'];
+  weekEl.innerHTML = '';
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000);
+    const ds2 = d.toISOString().split('T')[0];
+    const data = appData.checkins.find(c => c.date === ds2);
+    const isToday = ds2 === today;
+    const pill = document.createElement('div');
+    pill.className = 'week-pill' + (data ? ' has-data' : '') + (isToday ? ' today' : '');
+    const emoji = data && data.animo ? ['😞','😕','😐','🙂','😊'][data.animo-1] : '·';
+    pill.innerHTML = `<div class="wd">${['D','L','M','X','J','V','S'][d.getDay()]}</div><div class="wn">${d.getDate()}</div><div class="wi">${emoji}</div>`;
+    weekEl.appendChild(pill);
+  }
+
+  // Stats
+  const sg = document.getElementById('stat-grid');
+  if (todayData) {
+    sg.innerHTML = `
+      <div class="stat-card"><div class="stat-icon">😊</div><div class="stat-val">${todayData.animo||'—'}<span style="font-size:14px;color:var(--text3)">/5</span></div><div class="stat-name">Ánimo</div></div>
+      <div class="stat-card"><div class="stat-icon">⚡</div><div class="stat-val">${todayData.energia||'—'}<span style="font-size:14px;color:var(--text3)">/5</span></div><div class="stat-name">Energía</div></div>
+      <div class="stat-card"><div class="stat-icon">😴</div><div class="stat-val">${todayData.sueno_horas}<span style="font-size:14px;color:var(--text3)">h</span></div><div class="stat-name">Sueño</div></div>
+      <div class="stat-card"><div class="stat-icon">💧</div><div class="stat-val">${todayData.agua}<span style="font-size:14px;color:var(--text3)">v</span></div><div class="stat-name">Hidratación</div></div>
+    `;
+  } else {
+    sg.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:8px 0;grid-column:1/-1">Completa tu check-in para ver el resumen.</div>';
+  }
+
+  // Chart
+  const chartCard = document.getElementById('home-chart-card');
+  const chartEnerg = document.getElementById('home-chart-energia');
+  if (last7.length >= 2) {
+    chartCard.style.display = 'block';
+    chartEnerg.style.display = 'block';
+    const animoChart = document.getElementById('animo-chart');
+    const energiaChart = document.getElementById('energia-chart');
+    const labels = document.getElementById('animo-labels');
+    animoChart.innerHTML = '';
+    energiaChart.innerHTML = '';
+    labels.innerHTML = '';
+    const colorsAnimo = ['#ef4444','#f97316','#eab308','#84cc16','#22c55e'];
+    last7.slice().reverse().forEach(c => {
+      const v = Number(c.animo||0);
+      const b = document.createElement('div');
+      b.className = 'mini-bar';
+      b.style.height = (v * 8) + 'px';
+      b.style.background = v ? colorsAnimo[v-1] : 'var(--surface2)';
+      animoChart.appendChild(b);
+
+      const ve = Number(c.energia||0);
+      const be = document.createElement('div');
+      be.className = 'mini-bar';
+      be.style.height = (ve * 8) + 'px';
+      be.style.background = ve ? '#ec4899' : 'var(--surface2)';
+      energiaChart.appendChild(be);
+
+      const lbl = document.createElement('div');
+      lbl.className = 'chart-label';
+      lbl.textContent = new Date(c.date).getDate();
+      labels.appendChild(lbl);
+    });
+  }
+}
+
+// ---- HISTORIAL ----
+function renderHistorial() {
+  const list = document.getElementById('historial-list');
+  const empty = document.getElementById('historial-empty');
+  if (!appData.checkins.length) { list.innerHTML = ''; empty.style.display='block'; return; }
+  empty.style.display = 'none';
+  const days = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  list.innerHTML = appData.checkins.slice(0, 30).map(c => {
+    const d = new Date(c.date);
+    const tags = [];
+    if (c.ejercicio && c.ejercicio !== 'ninguno') tags.push(`<span class="hist-tag exercise">${c.ejercicio}</span>`);
+    if (c.semag_sintomas && c.semag_sintomas !== 'ninguno') tags.push(`<span class="hist-tag symptom">${c.semag_sintomas}</span>`);
+    if (c.dishidrosis) tags.push(`<span class="hist-tag symptom">dishidrosis</span>`);
+    if (c.bochorno) tags.push(`<span class="hist-tag symptom">bochorno</span>`);
+    if (c.nota) tags.push(`<span class="hist-tag">nota</span>`);
+    const scoreColor = (v) => ['#ef4444','#f97316','#eab308','#84cc16','#22c55e'][v-1] || '#555';
+    return `<div class="hist-day">
+      <div class="hist-day-header">
+        <span class="hist-day-date">${days[d.getDay()]} ${d.getDate()}/${d.getMonth()+1}</span>
+        <div class="hist-day-scores">
+          <span class="hist-score"><div class="hist-dot" style="background:${scoreColor(c.animo)}"></div>${c.animo||'—'}</span>
+          <span class="hist-score"><div class="hist-dot" style="background:${scoreColor(c.energia)}"></div>${c.energia||'—'}</span>
+          <span class="hist-score">😴${c.sueno_horas}h</span>
+        </div>
+      </div>
+      ${tags.length ? `<div class="hist-tags">${tags.join('')}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// ---- EPISODIOS ----
+let currentEpType = null;
+const epConfig = {
+  itu: {
+    title: '🦠 Infección urinaria',
+    fields: [
+      { type:'chips', label:'Síntomas presentes', field:'sintomas', vals:['Ardor al orinar','Frecuencia urinaria','Sangre en orina','Dolor pélvico','Fiebre'] },
+      { type:'scale', label:'Intensidad general', field:'intensidad' },
+      { type:'toggle', label:'Fui al médico', field:'medico' },
+      { type:'text', label:'Medicamento tomado', field:'medicamento' },
+      { type:'toggle', label:'Episodio resuelto', field:'resuelto' },
+      { type:'textarea', label:'Notas', field:'notas' }
+    ]
+  },
+  candidiasis: {
+    title: '🌡️ Candidiasis',
+    fields: [
+      { type:'chips', label:'Síntomas', field:'sintomas', vals:['Picazón','Ardor','Flujo anormal','Olor','Enrojecimiento'] },
+      { type:'scale', label:'Intensidad', field:'intensidad' },
+      { type:'toggle', label:'Fui al médico', field:'medico' },
+      { type:'text', label:'Tratamiento', field:'medicamento' },
+      { type:'toggle', label:'Resuelto', field:'resuelto' },
+      { type:'textarea', label:'Notas', field:'notas' }
+    ]
+  },
+  ginecologico: {
+    title: '🌸 Síntoma ginecológico',
+    fields: [
+      { type:'chips', label:'Tipo', field:'tipo', vals:['Ardor vaginal','Molestia','Spotting','Cambio en flujo','Dolor pélvico'] },
+      { type:'scale', label:'Intensidad', field:'intensidad' },
+      { type:'toggle', label:'Relacionado con el ciclo', field:'ciclo' },
+      { type:'textarea', label:'Notas', field:'notas' }
+    ]
+  },
+  spm: {
+    title: '🌙 Síntomas premenstruales',
+    fields: [
+      { type:'chips', label:'Síntomas', field:'sintomas', vals:['Irritabilidad','Tristeza','Hinchazón','Sensibilidad en pechos','Ansiedad','Retención de líquidos','Antojos'] },
+      { type:'scale', label:'Intensidad general', field:'intensidad' },
+      { type:'textarea', label:'Notas', field:'notas' }
+    ]
+  },
+  relaciones: {
+    title: '💜 Salud sexual',
+    fields: [
+      { type:'scale', label:'Bienestar general', field:'bienestar' },
+      { type:'toggle', label:'Molestia o dolor', field:'dolor' },
+      { type:'toggle', label:'Sequedad / lubricación baja', field:'sequedad' },
+      { type:'textarea', label:'Notas (privado)', field:'notas' }
+    ]
+  },
+  control: {
+    title: '📋 Control médico',
+    fields: [
+      { type:'chips', label:'Especialidad', field:'especialidad', vals:['Ginecología','Endocrinología','Medicina general','Nutrición','Salud mental','Otro'] },
+      { type:'textarea', label:'Notas de la consulta', field:'notas' },
+      { type:'textarea', label:'Indicaciones', field:'indicaciones' }
+    ]
+  }
+};
+const epFormVals = {};
+
+function openEpisodio(type) {
+  currentEpType = type;
+  const cfg = epConfig[type];
+  document.getElementById('ep-modal-title').textContent = cfg.title;
+  let html = '';
+  cfg.fields.forEach(f => {
+    if (f.type === 'scale') {
+      html += `<div class="card" style="margin-bottom:10px"><div class="card-label">${f.label}</div><div class="scale-dots" data-field="ep_${f.field}"></div></div>`;
+    } else if (f.type === 'chips') {
+      html += `<div class="card" style="margin-bottom:10px"><div class="card-label">${f.label}</div><div class="chips">${f.vals.map(v=>`<button class="chip" data-field="ep_${f.field}" data-val="${v}">${v}</button>`).join('')}</div></div>`;
+    } else if (f.type === 'toggle') {
+      html += `<div class="card" style="margin-bottom:10px"><div class="toggle-row"><span class="toggle-text">${f.label}</span><div class="toggle" data-field="ep_${f.field}" onclick="toggleField(this)"></div></div></div>`;
+    } else if (f.type === 'text') {
+      html += `<div class="card" style="margin-bottom:10px"><div class="card-label">${f.label}</div><input type="text" data-field="ep_${f.field}" class="nota-input" style="min-height:40px" placeholder="Escribe aquí..."></div>`;
+    } else if (f.type === 'textarea') {
+      html += `<div class="card" style="margin-bottom:10px"><div class="card-label">${f.label}</div><textarea data-field="ep_${f.field}" class="nota-input" placeholder="Escribe aquí..."></textarea></div>`;
+    }
+  });
+  document.getElementById('ep-modal-content').innerHTML = html;
+  // rebuild scales and chips in modal
+  document.querySelectorAll('#ep-modal-content .scale-dots').forEach(container => {
+    const field = container.dataset.field;
+    for (let i = 1; i <= 5; i++) {
+      const dot = document.createElement('button');
+      dot.className = 'scale-dot';
+      dot.textContent = i;
+      dot.addEventListener('click', () => {
+        container.querySelectorAll('.scale-dot').forEach((d,idx) => {
+          d.className = 'scale-dot';
+          if (idx < i) d.classList.add('selected','v'+(idx+1));
+        });
+        chipVals[field] = i;
+      });
+      container.appendChild(dot);
+    }
+  });
+  document.querySelectorAll('#ep-modal-content .chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      chip.classList.toggle('selected');
+    });
+  });
+  document.getElementById('ep-modal').style.display = 'block';
+}
+
+function closeEpisodio() {
+  document.getElementById('ep-modal').style.display = 'none';
+  currentEpType = null;
+}
+
+function saveEpisodio() {
+  if (!currentEpType) return;
+  const entry = { type: currentEpType, date: new Date().toISOString().split('T')[0], ts: Date.now(), data: {} };
+  document.querySelectorAll('#ep-modal-content [data-field]').forEach(el => {
+    const f = el.dataset.field;
+    if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') entry.data[f] = el.value;
+    else if (el.classList.contains('toggle')) entry.data[f] = el.classList.contains('on');
+  });
+  document.querySelectorAll('#ep-modal-content .chip.selected').forEach(c => {
+    const f = c.dataset.field;
+    if (!entry.data[f]) entry.data[f] = [];
+    if (Array.isArray(entry.data[f])) entry.data[f].push(c.dataset.val);
+  });
+  appData.episodios.unshift(entry);
+  saveData();
+  closeEpisodio();
+  showToast('✓ Episodio guardado');
+  renderEpisodios();
+}
+
+function renderEpisodios() {
+  const list = document.getElementById('episodios-list');
+  if (!appData.episodios.length) { list.innerHTML = ''; return; }
+  const icons = { itu:'🦠', candidiasis:'🌡️', ginecologico:'🌸', spm:'🌙', relaciones:'💜', control:'📋' };
+  list.innerHTML = '<div style="font-size:12px;color:var(--text3);margin-bottom:8px;padding:0 2px">Episodios recientes</div>' +
+    appData.episodios.slice(0,10).map(e => {
+      const d = new Date(e.date);
+      return `<div class="hist-day" style="margin-bottom:8px">
+        <div class="hist-day-header">
+          <span class="hist-day-date">${icons[e.type]||''} ${epConfig[e.type]?.title.replace(/[^\w\s]/g,'').trim()||e.type}</span>
+          <span style="font-size:12px;color:var(--text3)">${d.getDate()}/${d.getMonth()+1}</span>
+        </div>
+      </div>`;
+    }).join('');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('save-toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
