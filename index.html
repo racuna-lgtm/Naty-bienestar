@@ -214,7 +214,10 @@ input.nota{min-height:40px}
 <div id="app" style="display:none">
   <div class="app-header">
     <div class="logo">Naty <span>Bienestar</span></div>
-    <div class="hdate" id="hdate"></div>
+    <div style="text-align:right">
+      <div class="hdate" id="hdate"></div>
+      <div id="sync-status" style="font-size:10px;color:var(--violet2);opacity:0;transition:opacity .3s">↑ sincronizando</div>
+    </div>
   </div>
   <div class="tab-bar">
     <button class="tab-btn active" data-tab="home"><span class="ti">🏠</span>Inicio</button>
@@ -535,21 +538,113 @@ input.nota{min-height:40px}
 <div class="toast" id="toast">✓ Guardado</div>
 
 <script>
+// ====== SUPABASE CONFIG ======
+const SB_URL = 'https://ugwlyjcwppicdquexotv.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnd2x5amN3cHBpY2RxdWV4b3R2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxNzY2NjUsImV4cCI6MjA5MTc1MjY2NX0.NL0jneL8E3N8HhRk77hSkriCSvjCvvjHhBXdwPJbV1A';
+
+async function sbFetch(table, method='GET', body=null, filters='') {
+  const url = `${SB_URL}/rest/v1/${table}${filters}`;
+  const opts = {
+    method,
+    headers: {
+      'apikey': SB_KEY,
+      'Authorization': 'Bearer ' + SB_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': method==='POST' ? 'return=representation' : ''
+    }
+  };
+  if(body) opts.body = JSON.stringify(body);
+  try {
+    const r = await fetch(url, opts);
+    if(!r.ok) { const e=await r.text(); console.error('SB error:',e); return null; }
+    if(method==='DELETE' || r.status===204) return true;
+    const txt = await r.text();
+    return txt ? JSON.parse(txt) : true;
+  } catch(e) { console.error('SB fetch error:',e); return null; }
+}
+
 // ====== STATE ======
-const SK = 'naty_bienev2';
+const SK = 'naty_bienev3';
 let D = {checkins:[], episodios:[], pesos:[], examenes:[]};
 let pinSet = null, pinEntry = '', unlocked = false;
 let numV = {sueno_h:7, agua:6, peso:0};
 let togV = {}, chipV = {};
 let histPeriod = 14, histChart = 'animo';
 let currentEpType = null;
+let online = navigator.onLine;
 
-function load() {
+window.addEventListener('online',  ()=>{ online=true;  syncAll(); showToast('☁ Sincronizando...'); });
+window.addEventListener('offline', ()=>{ online=false; showToast('📴 Sin conexión — guardando local'); });
+
+// Cola de pendientes para sincronizar cuando vuelva conexión
+let pending = [];
+
+function loadLocal() {
   try { const r=localStorage.getItem(SK); if(r) D=JSON.parse(r); } catch(e){}
+  try { const p=localStorage.getItem(SK+'_pending'); if(p) pending=JSON.parse(p); } catch(e){}
   pinSet = localStorage.getItem('naty_pin4');
 }
-function save() { localStorage.setItem(SK, JSON.stringify(D)); }
-load();
+function saveLocal() {
+  localStorage.setItem(SK, JSON.stringify(D));
+}
+function savePending() {
+  localStorage.setItem(SK+'_pending', JSON.stringify(pending));
+}
+
+// ====== SYNC CON SUPABASE ======
+async function syncAll() {
+  if(!online) return;
+  showSyncStatus('Sincronizando...');
+  try {
+    // Cargar datos desde Supabase
+    const [checkins, episodios, pesos, examenes] = await Promise.all([
+      sbFetch('checkins','GET',null,'?order=date.desc&limit=180'),
+      sbFetch('episodios','GET',null,'?order=date.desc&limit=100'),
+      sbFetch('pesos','GET',null,'?order=date.desc&limit=100'),
+      sbFetch('examenes','GET',null,'?order=created_at.desc&limit=50'),
+    ]);
+    if(checkins) D.checkins = checkins;
+    if(episodios) D.episodios = episodios;
+    if(pesos) D.pesos = pesos;
+    if(examenes) D.examenes = examenes;
+    saveLocal();
+
+    // Subir pendientes si hay
+    if(pending.length) {
+      for(const p of pending) await executePending(p);
+      pending = [];
+      savePending();
+    }
+    showSyncStatus('');
+    renderHome();
+    renderHistorial();
+    renderEpisodios();
+    renderExamenes();
+  } catch(e) {
+    console.error('Sync error:', e);
+    showSyncStatus('');
+  }
+}
+
+async function executePending(p) {
+  if(p.type==='checkin') await sbFetch('checkins','POST',p.data);
+  else if(p.type==='upsert_checkin') {
+    await sbFetch('checkins','DELETE',null,`?date=eq.${p.data.date}`);
+    await sbFetch('checkins','POST',p.data);
+  }
+  else if(p.type==='episodio') await sbFetch('episodios','POST',p.data);
+  else if(p.type==='peso') await sbFetch('pesos','POST',p.data);
+  else if(p.type==='examen') await sbFetch('examenes','POST',p.data);
+}
+
+function showSyncStatus(msg) {
+  let el = document.getElementById('sync-status');
+  if(!el) return;
+  el.textContent = msg;
+  el.style.opacity = msg ? '1' : '0';
+}
+
+loadLocal();
 
 // ====== PIN ======
 document.querySelector('.pin-keypad').addEventListener('click', e=>{
@@ -576,6 +671,8 @@ function unlock() {
   document.getElementById('pin-screen').style.display='none';
   document.getElementById('app').style.display='flex';
   initApp();
+  // Sincronizar con Supabase al entrar
+  setTimeout(syncAll, 500);
 }
 
 // ====== INIT ======
@@ -619,7 +716,7 @@ function initApp() {
   });
 }
 
-// ====== SEED DEMO ======
+// ====== SEED DEMO (solo local, no sube a Supabase) ======
 function seedDemo() {
   const today = new Date();
   const moods = [3,2,3,4,3,2,3,4,3,3,2,3,4,3,2,3,4,3,4,3,3,2,4,3,3,4,3,2,3,4];
@@ -629,7 +726,7 @@ function seedDemo() {
     const d=new Date(today); d.setDate(d.getDate()-i);
     const ds=d.toISOString().split('T')[0];
     D.checkins.push({
-      date:ds, ts:d.getTime(),
+      date:ds,
       animo:moods[29-i], energia:energies[29-i], ansiedad:(29-i)%4===0?4:2,
       concentracion:moods[29-i], sueno_cal:sleeps[29-i]>=7?4:3,
       sueno_h:sleeps[29-i], desperto:(29-i)%5===0, magnesio:true,
@@ -643,13 +740,12 @@ function seedDemo() {
       fibra:(29-i)%6===0, dishidr:false, dish_int:null, nota:''
     });
   }
-  // seed some episodios
   D.episodios=[
     {type:'itu',date:'2025-03-10',data:{sintomas:['Ardor al orinar','Frecuencia urinaria'],intensidad:3,medico:true,medicamento:'Nitrofurantoína',resuelto:true,notas:'Duró 5 días'}},
     {type:'spm',date:'2025-03-28',data:{sintomas:['Irritabilidad','Hinchazón'],intensidad:3,notas:'Días previos al ciclo'}},
     {type:'cand',date:'2025-02-15',data:{sintomas:['Picazón','Ardor'],intensidad:2,medico:false,medicamento:'Clotrimazol',resuelto:true,notas:''}},
   ];
-  save();
+  saveLocal(); // solo local, no Supabase
 }
 
 // ====== SCALES & CHIPS ======
@@ -699,10 +795,10 @@ function chNum(f,d) {
 }
 
 // ====== SAVE CHECK-IN ======
-function saveCheckin() {
+async function saveCheckin() {
   const today=new Date().toISOString().split('T')[0];
   const entry={
-    date:today,ts:Date.now(),
+    date:today,
     animo:chipV.animo||null, energia:chipV.energia||null,
     ansiedad:chipV.ansiedad||null, concentracion:chipV.concentracion||null,
     sueno_cal:chipV.sueno_cal||null, sueno_h:numV.sueno_h,
@@ -719,11 +815,21 @@ function saveCheckin() {
     dishidr:togV.dishidr||false, dish_int:chipV.dish_int||null,
     nota:document.getElementById('nota-libre').value.trim()
   };
+  // Actualizar local inmediatamente
   D.checkins=D.checkins.filter(c=>c.date!==today);
   D.checkins.unshift(entry);
-  save();
+  saveLocal();
   showToast('✓ Check-in guardado');
   renderHome();
+
+  // Subir a Supabase
+  if(online) {
+    await sbFetch('checkins','DELETE',null,`?date=eq.${today}`);
+    await sbFetch('checkins','POST',entry);
+  } else {
+    pending.push({type:'upsert_checkin', data:entry});
+    savePending();
+  }
 }
 
 // ====== HOME ======
@@ -1042,9 +1148,12 @@ function openEp(type) {
   openModal('ep-modal');
 }
 function epTog(el){el.classList.toggle('on'); epTogV[el.dataset.f]=el.classList.contains('on');}
-function saveEp(){
+async function saveEp(){
   if(!currentEpType) return;
-  const entry={type:currentEpType,date:new Date().toISOString().split('T')[0],ts:Date.now(),data:{...epScaleV,...epTogV}};
+  const entry={type:currentEpType,date:new Date().toISOString().split('T')[0],data:{}};
+  // recopilar scaleV y togV del modal
+  Object.keys(epScaleV).forEach(k=>entry.data[k]=epScaleV[k]);
+  Object.keys(epTogV).forEach(k=>entry.data[k]=epTogV[k]);
   document.querySelectorAll('#ep-content [data-f]').forEach(el=>{
     if(el.tagName==='TEXTAREA'||el.tagName==='INPUT') entry.data[el.dataset.f]=el.value;
   });
@@ -1055,10 +1164,17 @@ function saveEp(){
     else entry.data[f]=c.dataset.v;
   });
   D.episodios.unshift(entry);
-  save();
+  saveLocal();
   closeModal('ep-modal');
   showToast('✓ Episodio guardado');
   renderEpisodios();
+
+  if(online) {
+    await sbFetch('episodios','POST',entry);
+  } else {
+    pending.push({type:'episodio', data:entry});
+    savePending();
+  }
 }
 function renderEpisodios(){
   const el=document.getElementById('ep-list');
@@ -1080,36 +1196,47 @@ function renderEpisodios(){
 }
 
 // ====== PESO ======
-function savePeso(){
+async function savePeso(){
   if(numV.peso<40||numV.peso>250) return;
-  D.pesos.unshift({date:new Date().toISOString().split('T')[0],kg:numV.peso});
-  save();
+  const entry={date:new Date().toISOString().split('T')[0],kg:numV.peso};
+  D.pesos.unshift(entry);
+  saveLocal();
   showToast('✓ Peso registrado');
   if(D.pesos.length>=2){
     const diff=(numV.peso-D.pesos[1].kg).toFixed(1);
     const arrow=diff<0?'↓':'↑';
     document.getElementById('peso-trend').textContent=`${arrow} ${Math.abs(diff)} kg desde el último registro (${D.pesos[1].kg} kg)`;
   }
+  if(online) {
+    await sbFetch('pesos','POST',entry);
+  } else {
+    pending.push({type:'peso',data:entry}); savePending();
+  }
 }
 
 // ====== EXAMENES ======
-function saveExam(){
+async function saveExam(){
   const tipo=document.getElementById('exam-tipo').value.trim();
   if(!tipo){showToast('Escribe el tipo de examen');return;}
   const res=document.querySelector('.chip[data-f="exam-res"].sel')?.dataset.v||'pendiente';
   const entry={
-    id:Date.now(), tipo,
+    tipo,
     fecha:document.getElementById('exam-fecha').value||new Date().toISOString().split('T')[0],
     resultado:res,
     notas:document.getElementById('exam-notas').value.trim(),
     medico:document.getElementById('exam-medico').value.trim(),
-    proximo:document.getElementById('exam-proximo').value
+    proximo:document.getElementById('exam-proximo').value||null
   };
   D.examenes.unshift(entry);
-  save();
+  saveLocal();
   closeModal('exam-modal');
   showToast('✓ Examen guardado');
   renderExamenes();
+  if(online) {
+    await sbFetch('examenes','POST',entry);
+  } else {
+    pending.push({type:'examen',data:entry}); savePending();
+  }
 }
 function renderExamenes(){
   const el=document.getElementById('exam-list');
