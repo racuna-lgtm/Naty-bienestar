@@ -400,9 +400,21 @@ input.nota{min-height:40px}
     <div class="card">
       <div class="card-label"><div class="dot6" style="background:var(--pink)"></div>Peso semanal</div>
       <div class="num-row">
-        <button class="num-btn" onclick="chNum('peso',-.1)">−</button>
-        <div><div class="num-val" id="v-peso">--</div><div class="num-lbl">kg</div></div>
-        <button class="num-btn" onclick="chNum('peso',.1)">+</button>
+        <button class="num-btn" onclick="chNum('peso',-1)">−</button>
+        <div>
+          <div class="num-val" id="v-peso">--</div>
+          <div class="num-lbl">kg (usa el campo abajo para decimales)</div>
+        </div>
+        <button class="num-btn" onclick="chNum('peso',1)">+</button>
+      </div>
+      <div style="margin-top:10px;display:flex;align-items:center;gap:8px">
+        <span style="font-size:13px;color:var(--text3)">Valor exacto:</span>
+        <input type="number" id="peso-exact" step="0.1" min="30" max="250"
+          placeholder="Ej: 72.5"
+          class="nota" style="min-height:36px;width:110px;margin-top:0"
+          onchange="syncPesoExact(this.value)"
+          oninput="syncPesoExact(this.value)">
+        <span style="font-size:13px;color:var(--text3)">kg</span>
       </div>
       <div id="peso-trend" style="font-size:12px;color:var(--text3);margin-top:8px"></div>
       <button class="save-btn" style="font-size:14px;padding:10px;margin-top:10px" onclick="savePeso()">Registrar peso</button>
@@ -785,7 +797,8 @@ function initApp() {
 
   if(D.pesos.length) {
     numV.peso = D.pesos[0].kg;
-    document.getElementById('v-peso').textContent = numV.peso.toFixed(1);
+    const vp = document.getElementById('v-peso');
+    if(vp) vp.textContent = numV.peso;
   }
 
   document.querySelectorAll('.tab-btn').forEach(btn=>{
@@ -930,12 +943,14 @@ function togOpt(id) {
   document.getElementById('os-'+id).classList.toggle('open');
 }
 function chNum(f,d) {
-  const limits={sueno_h:[0,14,.5],agua:[0,20,1],peso:[30,200,.1]};
+  const limits={sueno_h:[0,14,.5], agua:[0,20,1], peso:[40,250,1], ciclo_dur:[14,60,1]};
   const [mn,mx,step]=limits[f]||[0,100,1];
+  if(f==='peso' && numV[f]===0) numV[f]=60; // valor inicial razonable
   numV[f]=Math.round((+(numV[f]||0)+d)*10)/10;
   numV[f]=Math.max(mn,Math.min(mx,numV[f]));
   const el=document.getElementById('v-'+f);
-  if(el) el.textContent=(f==='peso'&&numV[f]===0)?'--':numV[f];
+  if(el) el.textContent=numV[f];
+  if(f==='ciclo_dur'){localStorage.setItem('naty_ciclo_dur',numV[f]);renderCiclo();}
 }
 
 // ====== SAVE CHECK-IN ======
@@ -1431,19 +1446,42 @@ function renderEpisodios(){
     }).join('');
 }
 
+function syncPesoExact(val) {
+  const v = parseFloat(val);
+  if(!isNaN(v) && v>=30 && v<=250) {
+    numV.peso = Math.round(v*10)/10;
+    document.getElementById('v-peso').textContent = numV.peso;
+  }
+}
+
 // ====== PESO ======
 async function savePeso(){
-  if(numV.peso<40||numV.peso>250) return;
-  const entry={date:new Date().toISOString().split('T')[0],kg:numV.peso};
+  // Priorizar el campo exacto si tiene valor
+  const exactEl = document.getElementById('peso-exact');
+  if(exactEl && exactEl.value) syncPesoExact(exactEl.value);
+
+  if(!numV.peso || numV.peso<30 || numV.peso>250){
+    showToast('⚠ Ingresa un peso válido');
+    return;
+  }
+  const entry={date:new Date().toISOString().split('T')[0], kg:numV.peso};
+  // Evitar duplicado del mismo día
+  D.pesos = D.pesos.filter(p=>p.date!==entry.date);
   D.pesos.unshift(entry);
   saveLocal();
-  showToast('✓ Peso registrado');
+  showToast('✓ Peso registrado: '+numV.peso+' kg');
+  if(exactEl) exactEl.value='';
+
   if(D.pesos.length>=2){
     const diff=(numV.peso-D.pesos[1].kg).toFixed(1);
     const arrow=diff<0?'↓':'↑';
-    document.getElementById('peso-trend').textContent=`${arrow} ${Math.abs(diff)} kg desde el último registro (${D.pesos[1].kg} kg)`;
+    const color=diff<0?'var(--green)':'var(--red)';
+    document.getElementById('peso-trend').innerHTML=
+      `<span style="color:${color}">${arrow} ${Math.abs(diff)} kg</span> desde el último registro (${D.pesos[1].kg} kg)`;
   }
-  if(online) {
+  if(online){
+    // Borrar registro del mismo día si existe
+    await sbFetch('pesos','DELETE',null,`?date=eq.${entry.date}`);
     await sbFetch('pesos','POST',entry);
   } else {
     pending.push({type:'peso',data:entry}); savePending();
@@ -1986,17 +2024,7 @@ function renderCiclo() {
   el.innerHTML = html;
 }
 
-// Guardar duración del ciclo
-const origChNum = chNum;
-function chNum(f, d) {
-  const limits = {sueno_h:[0,14,.5], agua:[0,20,1], peso:[30,200,.1], ciclo_dur:[14,60,1]};
-  const [mn,mx] = limits[f] || [0,100,1];
-  numV[f] = Math.round((+(numV[f]||0) + d) * 10) / 10;
-  numV[f] = Math.max(mn, Math.min(mx, numV[f]));
-  const el = document.getElementById('v-' + f);
-  if(el) el.textContent = (f==='peso' && numV[f]===0) ? '--' : numV[f];
-  if(f === 'ciclo_dur') { localStorage.setItem('naty_ciclo_dur', numV[f]); renderCiclo(); }
-}
+// Duración ciclo se maneja en chNum unificado
 
 // ====== GRÁFICO DE PESO ======
 function renderPesoChart() {
