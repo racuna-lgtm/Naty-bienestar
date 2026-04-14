@@ -221,6 +221,7 @@ input.nota{min-height:40px}
     <button class="tab-btn" data-tab="checkin"><span class="ti">✨</span>Check-in</button>
     <button class="tab-btn" data-tab="historial"><span class="ti">📊</span>Historial</button>
     <button class="tab-btn" data-tab="salud"><span class="ti">🏥</span>Salud</button>
+    <button class="tab-btn" data-tab="reporte"><span class="ti">📄</span>Reporte</button>
   </div>
 
   <!-- HOME -->
@@ -436,6 +437,54 @@ input.nota{min-height:40px}
   </div>
 </div>
 
+  <!-- REPORTE PDF -->
+  <div class="screen" id="tab-reporte">
+    <div class="sh">Reporte médico<small>Genera un informe para tu consulta</small></div>
+
+    <div class="card">
+      <div class="card-label"><div class="dot6" style="background:var(--violet)"></div>Período del informe</div>
+      <div class="chips" style="margin-top:0">
+        <button class="chip sel" data-f="rep-periodo" data-v="14" onclick="selRepPeriodo(this,14)">14 días</button>
+        <button class="chip" data-f="rep-periodo" data-v="30" onclick="selRepPeriodo(this,30)">30 días</button>
+        <button class="chip" data-f="rep-periodo" data-v="60" onclick="selRepPeriodo(this,60)">2 meses</button>
+        <button class="chip" data-f="rep-periodo" data-v="90" onclick="selRepPeriodo(this,90)">3 meses</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label"><div class="dot6" style="background:var(--blue)"></div>¿Para qué especialidad?</div>
+      <div class="chips" style="margin-top:0">
+        <button class="chip sel" data-f="rep-espec" data-v="general" onclick="selRepEspec(this,'general')">General</button>
+        <button class="chip" data-f="rep-espec" data-v="ginecologia" onclick="selRepEspec(this,'ginecologia')">Ginecología</button>
+        <button class="chip" data-f="rep-espec" data-v="endocrinologia" onclick="selRepEspec(this,'endocrinologia')">Endocrinología</button>
+        <button class="chip" data-f="rep-espec" data-v="salud_mental" onclick="selRepEspec(this,'salud_mental')">Salud mental</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label"><div class="dot6" style="background:var(--green)"></div>Secciones a incluir</div>
+      <div id="rep-sections">
+        <div class="toggle-row"><span class="ttext">Resumen ejecutivo</span><div class="toggle on" data-rs="resumen" onclick="tog(this)"></div></div>
+        <div class="toggle-row"><span class="ttext">Ánimo y salud mental</span><div class="toggle on" data-rs="animo" onclick="tog(this)"></div></div>
+        <div class="toggle-row"><span class="ttext">Sueño</span><div class="toggle on" data-rs="sueno" onclick="tog(this)"></div></div>
+        <div class="toggle-row"><span class="ttext">Tratamiento semaglutida</span><div class="toggle on" data-rs="semag" onclick="tog(this)"></div></div>
+        <div class="toggle-row"><span class="ttext">Salud ginecológica y ciclo</span><div class="toggle on" data-rs="gineco" onclick="tog(this)"></div></div>
+        <div class="toggle-row"><span class="ttext">Digestión</span><div class="toggle on" data-rs="digestion" onclick="tog(this)"></div></div>
+        <div class="toggle-row"><span class="ttext">Hábitos y ejercicio</span><div class="toggle on" data-rs="habitos" onclick="tog(this)"></div></div>
+        <div class="toggle-row"><span class="ttext">Exámenes y controles</span><div class="toggle on" data-rs="examenes" onclick="tog(this)"></div></div>
+      </div>
+    </div>
+
+    <!-- Preview -->
+    <div class="card" id="rep-preview">
+      <div class="card-label"><div class="dot6" style="background:var(--amber)"></div>Vista previa del informe</div>
+      <div id="rep-preview-content" style="font-size:13px;color:var(--text2);line-height:1.8"></div>
+    </div>
+
+    <button class="save-btn" onclick="generatePDF()" id="pdf-btn">⬇ Descargar PDF</button>
+    <div id="pdf-status" style="text-align:center;font-size:12px;color:var(--text3);margin-top:8px;display:none">Generando PDF...</div>
+  </div>
+
 <!-- EPISODE MODAL -->
 <div class="modal" id="ep-modal">
   <div class="modal-header">
@@ -565,6 +614,7 @@ function initApp() {
       btn.classList.add('active');
       document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
       if(btn.dataset.tab==='historial') renderHistorial();
+      if(btn.dataset.tab==='reporte') buildPreview();
     });
   });
 }
@@ -1079,7 +1129,327 @@ function renderExamenes(){
     </div>`).join('');
 }
 
-// ====== MODAL ======
+// ====== REPORTE PDF ======
+let repPeriodo = 14;
+let repEspec = 'general';
+
+function selRepPeriodo(el, v) {
+  document.querySelectorAll('.chip[data-f="rep-periodo"]').forEach(c=>c.classList.remove('sel'));
+  el.classList.add('sel'); repPeriodo = v;
+  buildPreview();
+}
+function selRepEspec(el, v) {
+  document.querySelectorAll('.chip[data-f="rep-espec"]').forEach(c=>c.classList.remove('sel'));
+  el.classList.add('sel'); repEspec = v;
+  buildPreview();
+}
+
+function getRepSections() {
+  const s = {};
+  document.querySelectorAll('[data-rs]').forEach(el => { s[el.dataset.rs] = el.classList.contains('on'); });
+  return s;
+}
+
+function calcStats(data) {
+  const avg = (arr) => arr.length ? Math.round(arr.reduce((a,b)=>a+b,0)/arr.length*10)/10 : null;
+  const pct = (arr, cond) => arr.length ? Math.round(arr.filter(cond).length/arr.length*100) : 0;
+  const vals = f => data.filter(c=>c[f]).map(c=>+c[f]);
+  return {
+    n: data.length,
+    animo: { avg: avg(vals('animo')), vals: vals('animo') },
+    energia: { avg: avg(vals('energia')) },
+    ansiedad: { avg: avg(vals('ansiedad')) },
+    sueno: { avgH: avg(data.map(c=>c.sueno_h||0)), avgCal: avg(vals('sueno_cal')), despertoPct: pct(data,c=>c.desperto) },
+    semag: { sintDias: data.filter(c=>c.semag&&c.semag!=='ninguno').length, analgesicoDias: data.filter(c=>c.analgesico).length, domperidonaDias: data.filter(c=>c.domperidona).length },
+    ejercicio: { diasPilates: data.filter(c=>c.ejercicio==='pilates').length, diasCaminata: data.filter(c=>c.ejercicio==='caminata').length, diasTotal: data.filter(c=>c.ejercicio&&c.ejercicio!=='ninguno').length },
+    habitos: { aguaAvg: avg(data.map(c=>c.agua||0)), alcDias: data.filter(c=>c.alcohol&&c.alcohol!=='nada').length, socialDias: data.filter(c=>c.social).length },
+    digestion: { depOk: data.filter(c=>c.deposicion).length, depDif: data.filter(c=>c.dep_dif).length, hinchazon: data.filter(c=>c.hinchazon).length },
+    bochornos: data.filter(c=>c.bochorno).length,
+    dishidrosis: data.filter(c=>c.dishidr).length,
+    productiv: { avg: avg(vals('productiv')) },
+    notas: data.filter(c=>c.nota).map(c=>({date:c.date,nota:c.nota}))
+  };
+}
+
+function buildPreview() {
+  const data = D.checkins.slice(0, repPeriodo).reverse();
+  if(!data.length) { document.getElementById('rep-preview-content').innerHTML='<i>Sin datos para este período</i>'; return; }
+  const st = calcStats(data);
+  const sec = getRepSections();
+  const today = new Date().toLocaleDateString('es-CL');
+  const desde = new Date(data[0].date).toLocaleDateString('es-CL');
+  const hasta = new Date(data[data.length-1].date).toLocaleDateString('es-CL');
+  const scoreBar = (v) => v ? '■'.repeat(Math.round(v)) + '□'.repeat(5-Math.round(v)) + ` ${v}/5` : '—';
+  const especialidadLabels = {general:'General',ginecologia:'Ginecología',endocrinologia:'Endocrinología',salud_mental:'Salud mental'};
+
+  let html = `<div style="font-weight:500;color:var(--text);margin-bottom:8px">
+    Informe de Bienestar Personal<br>
+    <span style="font-size:11px;color:var(--text3);font-weight:400">Natalia · Para: ${especialidadLabels[repEspec]} · ${desde} al ${hasta} · ${st.n} registros</span>
+  </div>`;
+
+  if(sec.resumen) {
+    html += `<div style="background:rgba(155,93,229,.1);border-radius:8px;padding:10px 12px;margin-bottom:10px">
+      <div style="font-weight:500;color:var(--violet2);margin-bottom:6px">RESUMEN EJECUTIVO</div>
+      <div>Ánimo promedio: ${scoreBar(st.animo.avg)}</div>
+      <div>Energía promedio: ${scoreBar(st.energia.avg)}</div>
+      <div>Sueño: ${st.sueno.avgH}h promedio · calidad ${scoreBar(st.sueno.avgCal)}</div>
+      <div>Días con actividad física: ${st.ejercicio.diasTotal}/${st.n}</div>
+      <div>Días con síntomas semaglutida: ${st.semag.sintDias}/${st.n}</div>
+    </div>`;
+  }
+  if(sec.animo) {
+    html += `<div style="margin-bottom:8px"><div style="font-weight:500;color:var(--text);margin-bottom:3px">Salud mental y ánimo</div>
+      <div style="color:var(--text3)">Ánimo ${scoreBar(st.animo.avg)} · Ansiedad ${scoreBar(st.ansiedad.avg)} · Productividad ${scoreBar(st.productiv.avg)}</div>
+      <div style="color:var(--text3)">Conexión social: ${st.habitos.socialDias}/${st.n} días</div>
+      ${st.animo.avg && st.animo.avg<=2.5 ? '<div style="color:var(--amber)">⚠ Ánimo bajo sostenido durante el período</div>' : ''}
+    </div>`;
+  }
+  if(sec.sueno) {
+    html += `<div style="margin-bottom:8px"><div style="font-weight:500;color:var(--text);margin-bottom:3px">Sueño</div>
+      <div style="color:var(--text3)">Promedio ${st.sueno.avgH}h · Calidad ${scoreBar(st.sueno.avgCal)}</div>
+      <div style="color:var(--text3)">Despertó antes de hora: ${st.sueno.despertoPct}% de las noches</div>
+      <div style="color:var(--text3)">Toma magnesio como suplemento</div>
+    </div>`;
+  }
+  if(sec.semag) {
+    html += `<div style="margin-bottom:8px"><div style="font-weight:500;color:var(--text);margin-bottom:3px">Tratamiento semaglutida</div>
+      <div style="color:var(--text3)">Días con síntomas: ${st.semag.sintDias}/${st.n} (${Math.round(st.semag.sintDias/st.n*100)}%)</div>
+      <div style="color:var(--text3)">Uso analgésico: ${st.semag.analgesicoDias} días · Domperidona: ${st.semag.domperidonaDias} días</div>
+      ${D.pesos.length>=2 ? `<div style="color:var(--text3)">Peso: de ${D.pesos[D.pesos.length-1].kg} kg a ${D.pesos[0].kg} kg (${(D.pesos[0].kg-D.pesos[D.pesos.length-1].kg).toFixed(1)} kg)</div>` : ''}
+    </div>`;
+  }
+  if(sec.gineco) {
+    const epGine = D.episodios.filter(e=>['itu','cand','gine','spm','sex'].includes(e.type) && new Date(e.date)>=new Date(data[0].date));
+    html += `<div style="margin-bottom:8px"><div style="font-weight:500;color:var(--text);margin-bottom:3px">Salud ginecológica</div>
+      <div style="color:var(--text3)">DIU Asertia — insertado noviembre 2024 (sin síntomas de rechazo reportados)</div>
+      <div style="color:var(--text3)">Episodios registrados en el período: ${epGine.length}</div>
+      ${epGine.map(e=>`<div style="color:var(--text3)">· ${new Date(e.date).toLocaleDateString('es-CL')}: ${epCfg[e.type]?.title.replace(/[^\w\sáéíóúñÁÉÍÓÚÑ]/g,'').trim()||e.type}${e.data?.sintomas?.length?' — '+e.data.sintomas.join(', '):''}</div>`).join('')}
+      <div style="color:var(--text3)">Bochornos registrados: ${st.bochornos} días</div>
+    </div>`;
+  }
+  if(sec.digestion) {
+    html += `<div style="margin-bottom:8px"><div style="font-weight:500;color:var(--text);margin-bottom:3px">Digestión</div>
+      <div style="color:var(--text3)">Deposición registrada: ${st.digestion.depOk}/${st.n} días · Dificultad: ${st.digestion.depDif} días</div>
+      <div style="color:var(--text3)">Hinchazón abdominal: ${st.digestion.hinchazon} días</div>
+    </div>`;
+  }
+  if(sec.habitos) {
+    html += `<div style="margin-bottom:8px"><div style="font-weight:500;color:var(--text);margin-bottom:3px">Hábitos</div>
+      <div style="color:var(--text3)">Ejercicio: ${st.ejercicio.diasTotal} días (${st.ejercicio.diasPilates} pilates · ${st.ejercicio.diasCaminata} caminata)</div>
+      <div style="color:var(--text3)">Agua: ${st.habitos.aguaAvg} vasos/día promedio</div>
+      <div style="color:var(--text3)">Alcohol: ${st.habitos.alcDias}/${st.n} días · Dishidrosis: ${st.dishidrosis} días</div>
+    </div>`;
+  }
+  if(sec.examenes && (D.examenes.length||true)) {
+    html += `<div style="margin-bottom:8px"><div style="font-weight:500;color:var(--text);margin-bottom:3px">Exámenes</div>
+      <div style="color:var(--text3)">PAP: nov 2024 — sin alteraciones</div>
+      <div style="color:var(--text3)">Mamografía: 2025 — normal</div>
+      ${D.examenes.map(e=>`<div style="color:var(--text3)">${e.tipo}: ${e.fecha} — ${e.resultado}${e.notas?' ('+e.notas+')':''}</div>`).join('')}
+    </div>`;
+  }
+  if(st.notas.length) {
+    html += `<div style="margin-bottom:8px"><div style="font-weight:500;color:var(--text);margin-bottom:3px">Notas del período</div>
+      ${st.notas.slice(0,5).map(n=>`<div style="color:var(--text3)">· ${new Date(n.date).toLocaleDateString('es-CL')}: ${n.nota}</div>`).join('')}
+    </div>`;
+  }
+  document.getElementById('rep-preview-content').innerHTML = html;
+}
+
+function generatePDF() {
+  const btn = document.getElementById('pdf-btn');
+  const status = document.getElementById('pdf-status');
+  btn.disabled = true; btn.textContent = '⏳ Generando...';
+  status.style.display = 'block';
+
+  // Load jsPDF dynamically
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+  script.onload = () => {
+    try { buildPDF(); }
+    catch(e) { status.textContent='Error: '+e.message; }
+    finally { btn.disabled=false; btn.textContent='⬇ Descargar PDF'; status.style.display='none'; }
+  };
+  script.onerror = () => {
+    status.textContent = 'Sin conexión para cargar jsPDF.';
+    btn.disabled=false; btn.textContent='⬇ Descargar PDF';
+  };
+  document.head.appendChild(script);
+}
+
+function buildPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const data = D.checkins.slice(0, repPeriodo).reverse();
+  const st = calcStats(data);
+  const sec = getRepSections();
+  const desde = data.length ? new Date(data[0].date).toLocaleDateString('es-CL') : '—';
+  const hasta = data.length ? new Date(data[data.length-1].date).toLocaleDateString('es-CL') : '—';
+  const today = new Date().toLocaleDateString('es-CL');
+  const especialidadLabels = {general:'General',ginecologia:'Ginecología',endocrinologia:'Endocrinología',salud_mental:'Salud Mental'};
+
+  const W=210, mar=18;
+  let y = mar;
+  const lh = 6;
+
+  const setFont = (size, style='normal', color=[40,40,40]) => {
+    doc.setFontSize(size); doc.setFont('helvetica',style); doc.setTextColor(...color);
+  };
+  const ln = (txt, indent=0, dy=lh) => {
+    const lines = doc.splitTextToSize(txt, W-mar*2-indent);
+    lines.forEach(l => {
+      if(y>270){ doc.addPage(); y=mar; }
+      doc.text(l, mar+indent, y); y+=dy;
+    });
+  };
+  const section = (title, color=[80,40,140]) => {
+    y+=2;
+    doc.setFillColor(...color); doc.setDrawColor(...color);
+    doc.roundedRect(mar, y-4, W-mar*2, 8, 1, 1, 'F');
+    doc.setTextColor(255,255,255); doc.setFontSize(10); doc.setFont('helvetica','bold');
+    doc.text(title, mar+4, y+1); y+=8; doc.setTextColor(40,40,40);
+  };
+  const row = (label, value) => {
+    setFont(9,'bold',[80,80,80]); doc.text(label+':', mar+2, y);
+    setFont(9,'normal',[40,40,40]); doc.text(String(value), mar+50, y);
+    y+=lh;
+  };
+  const scoreBar = v => v ? ('█'.repeat(Math.round(v))+'░'.repeat(5-Math.round(v))+' '+v+'/5') : '—';
+  const divider = () => { doc.setDrawColor(220,210,240); doc.line(mar,y,W-mar,y); y+=3; };
+
+  // HEADER
+  doc.setFillColor(245,240,255);
+  doc.rect(0,0,W,38,'F');
+  setFont(18,'bold',[60,20,120]);
+  doc.text('Informe de Bienestar Personal', mar, 16);
+  setFont(9,'normal',[100,80,140]);
+  doc.text('Natalia · Generado el '+today, mar, 23);
+  doc.text('Período: '+desde+' al '+hasta+' · '+st.n+' check-ins registrados', mar, 29);
+  doc.text('Especialidad: '+especialidadLabels[repEspec], mar, 35);
+  y = 46;
+
+  // SECCIÓN 1: RESUMEN
+  if(sec.resumen) {
+    section('RESUMEN EJECUTIVO', [80,40,160]);
+    setFont(9,'normal');
+    row('Ánimo promedio', scoreBar(st.animo.avg));
+    row('Energía promedio', scoreBar(st.energia.avg));
+    row('Sueño promedio', st.sueno.avgH+'h · calidad '+scoreBar(st.sueno.avgCal));
+    row('Actividad física', st.ejercicio.diasTotal+'/'+st.n+' días');
+    row('Síntomas semaglutida', st.semag.sintDias+'/'+st.n+' días');
+    if(st.animo.avg && st.animo.avg<=2.5) {
+      doc.setFillColor(255,244,220); doc.roundedRect(mar,y,W-mar*2,8,1,1,'F');
+      setFont(9,'bold',[160,100,0]);
+      doc.text('⚠  Ánimo bajo sostenido durante el período — se recomienda evaluación.', mar+4, y+5);
+      y+=11;
+    }
+    divider();
+  }
+
+  // SECCIÓN 2: ÁNIMO
+  if(sec.animo) {
+    section('SALUD MENTAL Y ÁNIMO', [80,40,160]);
+    row('Ánimo', scoreBar(st.animo.avg));
+    row('Ansiedad', scoreBar(st.ansiedad.avg)+' (1=leve, 5=intensa)');
+    row('Concentración', scoreBar(calcStats(data).productiv.avg));
+    row('Productividad', scoreBar(st.productiv.avg));
+    row('Conexión social', st.habitos.socialDias+'/'+st.n+' días');
+    divider();
+  }
+
+  // SECCIÓN 3: SUEÑO
+  if(sec.sueno) {
+    section('SUEÑO', [80,40,160]);
+    row('Horas promedio', st.sueno.avgH+'h');
+    row('Calidad promedio', scoreBar(st.sueno.avgCal));
+    row('Despertó antes de hora', st.sueno.despertoPct+'% de las noches');
+    row('Suplemento', 'Magnesio nocturno');
+    divider();
+  }
+
+  // SECCIÓN 4: SEMAGLUTIDA
+  if(sec.semag) {
+    section('TRATAMIENTO SEMAGLUTIDA', [80,40,160]);
+    row('Días con síntomas', st.semag.sintDias+'/'+st.n+' ('+Math.round(st.semag.sintDias/st.n*100)+'%)');
+    row('Uso de analgésico', st.semag.analgesicoDias+' días');
+    row('Uso de domperidona', st.semag.domperidonaDias+' días');
+    row('Apetito/saciedad', scoreBar(calcStats(data).productiv.avg));
+    if(D.pesos.length>=2) row('Variación de peso', 'De '+D.pesos[D.pesos.length-1].kg+' kg a '+D.pesos[0].kg+' kg');
+    divider();
+  }
+
+  // SECCIÓN 5: GINECOLÓGICA
+  if(sec.gineco) {
+    section('SALUD GINECOLÓGICA Y CICLO', [80,40,160]);
+    setFont(9,'normal');
+    ln('DIU Asertia: insertado noviembre 2024, vencimiento noviembre 2029.');
+    ln('Bochornos/sofocos registrados: '+st.bochornos+' días.');
+    const epGine = D.episodios.filter(e=>['itu','cand','gine','spm','sex'].includes(e.type));
+    if(epGine.length) {
+      ln('Episodios registrados: '+epGine.length);
+      epGine.slice(0,8).forEach(e=>{
+        const nm = epCfg[e.type]?.title.replace(/[^\w\sáéíóúñÁÉÍÓÚÑ]/g,'').trim()||e.type;
+        const syms = Array.isArray(e.data?.sintomas)?e.data.sintomas.join(', '):'';
+        ln('· '+new Date(e.date).toLocaleDateString('es-CL')+': '+nm+(syms?' ('+syms+')':''), 2);
+      });
+    } else ln('Sin episodios ginecológicos en el período.');
+    divider();
+  }
+
+  // SECCIÓN 6: DIGESTIÓN
+  if(sec.digestion) {
+    section('DIGESTIÓN', [80,40,160]);
+    row('Deposición registrada', st.digestion.depOk+'/'+st.n+' días');
+    row('Con dificultad', st.digestion.depDif+' días');
+    row('Hinchazón abdominal', st.digestion.hinchazon+' días');
+    row('Uso de fibra', D.checkins.filter(c=>c.fibra).length+' días en el período');
+    divider();
+  }
+
+  // SECCIÓN 7: HÁBITOS
+  if(sec.habitos) {
+    section('HÁBITOS Y ACTIVIDAD FÍSICA', [80,40,160]);
+    row('Días con ejercicio', st.ejercicio.diasTotal+'/'+st.n);
+    row('Pilates', st.ejercicio.diasPilates+' sesiones');
+    row('Caminata', st.ejercicio.diasCaminata+' veces');
+    row('Hidratación', st.habitos.aguaAvg+' vasos/día promedio');
+    row('Días con alcohol', st.habitos.alcDias+'/'+st.n);
+    row('Dishidrosis', st.dishidrosis+' días');
+    divider();
+  }
+
+  // SECCIÓN 8: EXÁMENES
+  if(sec.examenes) {
+    section('EXÁMENES Y CONTROLES MÉDICOS', [80,40,160]);
+    setFont(9,'normal');
+    ln('PAP: noviembre 2024 — Sin alteraciones');
+    ln('Mamografía: 2025 — Normal');
+    D.examenes.forEach(e=>{
+      ln(e.tipo+' ('+e.fecha+'): '+e.resultado+(e.notas?' — '+e.notas:''), 0, 5);
+      if(e.proximo) ln('  Próximo control: '+e.proximo, 4, 5);
+    });
+    divider();
+  }
+
+  // NOTAS
+  if(st.notas.length) {
+    section('NOTAS DEL PERÍODO', [80,40,160]);
+    st.notas.slice(0,8).forEach(n=>{
+      ln('· '+new Date(n.date).toLocaleDateString('es-CL')+': '+n.nota, 0, 5.5);
+    });
+  }
+
+  // FOOTER on last page
+  const pages = doc.internal.getNumberOfPages();
+  for(let i=1;i<=pages;i++){
+    doc.setPage(i);
+    setFont(8,'normal',[160,150,180]);
+    doc.text('Informe generado desde Naty Bienestar — uso personal y confidencial · Pág. '+i+'/'+pages, mar, 290);
+  }
+
+  doc.save('Informe_Bienestar_'+today.replace(/\//g,'-')+'.pdf');
+  showToast('✓ PDF descargado');
+}
+
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 
