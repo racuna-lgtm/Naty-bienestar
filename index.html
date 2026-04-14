@@ -332,6 +332,32 @@ input.nota{min-height:40px}
       <div class="scale-row" style="margin-top:12px"><span class="scale-label">Productividad percibida</span><div class="scale-dots" data-f="productiv"></div></div>
     </div>
     <div class="card">
+      <div class="opt-toggle" id="ot-ciclo" onclick="togOpt('ciclo')"><span class="arr">▶</span> 🌸 Período menstrual (opcional)</div>
+      <div class="opt-section" id="os-ciclo">
+        <div class="toggle-row" style="margin-bottom:10px">
+          <span class="ttext">Estoy con el período hoy</span>
+          <div class="toggle" data-f="periodo_activo" onclick="tog(this);togglePeriodoDetalle(this)"></div>
+        </div>
+        <div id="periodo-detalle" style="display:none">
+          <div style="font-size:13px;color:var(--text3);margin-bottom:8px">Intensidad del flujo</div>
+          <div class="chips">
+            <button class="chip" data-f="flujo" data-v="manchado">🔴 Manchado</button>
+            <button class="chip" data-f="flujo" data-v="leve">🔴 Leve</button>
+            <button class="chip" data-f="flujo" data-v="moderado">🔴🔴 Moderado</button>
+            <button class="chip" data-f="flujo" data-v="abundante">🔴🔴🔴 Abundante</button>
+          </div>
+          <div class="toggle-row" style="margin-top:10px">
+            <span class="ttext">Primer día del período</span>
+            <div class="toggle" data-f="primer_dia" onclick="tog(this)"></div>
+          </div>
+          <div class="scale-row" style="margin-top:10px">
+            <span class="scale-label">Dolor / cólicos</span>
+            <div class="scale-dots" data-f="dolor_ciclo" data-inv="1"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
       <div class="opt-toggle" id="ot-dig" onclick="togOpt('dig')"><span class="arr">▶</span> Digestión (opcional)</div>
       <div class="opt-section" id="os-dig">
         <div class="toggle-row"><span class="ttext">Deposición hoy</span><div class="toggle" data-f="deposicion" onclick="tog(this)"></div></div>
@@ -684,6 +710,14 @@ function savePending() {
   localStorage.setItem(SK+'_pending', JSON.stringify(pending));
 }
 
+// Sesión: si ya estaba desbloqueada en esta sesión del navegador, no pedir PIN de nuevo
+function checkSession() {
+  return sessionStorage.getItem('naty_session') === '1';
+}
+function saveSession() {
+  sessionStorage.setItem('naty_session', '1');
+}
+
 // ====== SYNC CON SUPABASE ======
 async function syncAll() {
   if(!online) return;
@@ -739,6 +773,16 @@ function showSyncStatus(msg) {
 
 loadLocal();
 
+// Auto-desbloquear si ya había sesión activa (evita pedir PIN al recargar)
+if(checkSession() && pinSet) {
+  document.addEventListener('DOMContentLoaded', ()=>{
+    document.getElementById('pin-screen').style.display='none';
+    document.getElementById('app').style.display='flex';
+    initApp();
+    setTimeout(syncAll, 500);
+  });
+}
+
 // ====== PIN ======
 document.querySelector('.pin-keypad').addEventListener('click', e=>{
   const b = e.target.closest('.pin-key'); if(!b) return;
@@ -761,10 +805,10 @@ function doPin() {
   }
 }
 function unlock() {
+  saveSession(); // guardar sesión para no pedir PIN al recargar
   document.getElementById('pin-screen').style.display='none';
   document.getElementById('app').style.display='flex';
   initApp();
-  // Sincronizar con Supabase al entrar
   setTimeout(syncAll, 500);
 }
 
@@ -973,6 +1017,10 @@ async function saveCheckin() {
     deposicion:togV.deposicion||false, dep_dif:togV.dep_dif||false,
     hinchazon:togV.hinchazon||false, fibra:togV.fibra||false,
     dishidr:togV.dishidr||false, dish_int:chipV.dish_int||null,
+    periodo_activo:togV.periodo_activo||false,
+    flujo:chipV.flujo||null,
+    primer_dia:togV.primer_dia||false,
+    dolor_ciclo:chipV.dolor_ciclo||null,
     nota:document.getElementById('nota-libre').value.trim()
   };
   // Actualizar local inmediatamente
@@ -1057,8 +1105,10 @@ function renderHome() {
 // ====== CHART ENGINE ======
 function drawSparkline(svgId, tipId, data, series) {
   const svg=document.getElementById(svgId);
+  if(!svg) return;
   const tip=document.getElementById(tipId);
-  const W=svg.parentElement.clientWidth||340;
+  // Usar ancho real o fallback para tabs ocultas
+  const W=svg.parentElement.clientWidth||svg.closest('.screen')?.clientWidth||340;
   const H=parseInt(svg.style.height)||120;
   const pad={t:10,r:10,b:20,l:24};
   const cw=W-pad.l-pad.r, ch=H-pad.t-pad.b;
@@ -1926,6 +1976,11 @@ function initNotif() {
   }
 }
 
+function togglePeriodoDetalle(el) {
+  const detalle = document.getElementById('periodo-detalle');
+  if(detalle) detalle.style.display = el.classList.contains('on') ? 'block' : 'none';
+}
+
 // ====== CICLO MENSTRUAL ======
 numV.ciclo_dur = parseInt(localStorage.getItem('naty_ciclo_dur') || '28');
 
@@ -1943,85 +1998,99 @@ function registrarCiclo() {
 function renderCiclo() {
   const el = document.getElementById('ciclo-calendar');
   if(!el) return;
-  if(!D.ciclos || !D.ciclos.length) {
-    el.innerHTML = '<div style="font-size:12px;color:var(--text3)">Aún no hay ciclos registrados. Toca el botón cuando comience tu período.</div>';
-    return;
-  }
+  if(!D.ciclos) D.ciclos = [];
+
   const dur = numV.ciclo_dur || 28;
   const today = new Date(); today.setHours(0,0,0,0);
 
-  // Mostrar los últimos 42 días (6 semanas)
-  const days = [];
-  for(let i = 41; i >= 0; i--) {
-    const d = new Date(today); d.setDate(d.getDate() - i);
-    days.push(d);
-  }
-
-  // Calcular días de flujo (5 días desde cada inicio registrado)
-  const flowSet = new Set();
-  const startSet = new Set();
-  D.ciclos.forEach(s => {
-    const sd = new Date(s + 'T12:00:00');
-    startSet.add(s);
-    for(let i = 0; i < 5; i++) {
-      const fd = new Date(sd); fd.setDate(fd.getDate() + i);
-      flowSet.add(fd.toISOString().split('T')[0]);
+  // Construir mapa de flujo desde checkins reales
+  const flujoMap = {}; // date -> intensidad
+  D.checkins.forEach(c => {
+    if(c.periodo_activo && c.flujo) flujoMap[c.date] = c.flujo;
+    if(c.primer_dia) {
+      if(!D.ciclos.includes(c.date)) D.ciclos.push(c.date);
     }
   });
+  // Ordenar ciclos desc
+  D.ciclos.sort((a,b)=>b.localeCompare(a));
 
-  // Próximo ciclo predicho desde el último inicio
-  const lastStart = new Date(D.ciclos[0] + 'T12:00:00');
-  const nextStart = new Date(lastStart); nextStart.setDate(nextStart.getDate() + dur);
+  // Mostrar 42 días (6 semanas)
+  const days = [];
+  for(let i=41;i>=0;i--) {
+    const d=new Date(today); d.setDate(d.getDate()-i); days.push(d);
+  }
+
+  // Calcular inicio registrado más reciente
+  const startSet = new Set(D.ciclos);
   const predictedSet = new Set();
   const fertileSet = new Set();
-  for(let i = 0; i < 5; i++) {
-    const pd = new Date(nextStart); pd.setDate(pd.getDate() + i);
-    predictedSet.add(pd.toISOString().split('T')[0]);
+  let nextStart = null;
+  let daysToNext = null;
+
+  if(D.ciclos.length) {
+    const lastStart = new Date(D.ciclos[0]+'T12:00:00');
+    nextStart = new Date(lastStart); nextStart.setDate(nextStart.getDate()+dur);
+    daysToNext = Math.round((nextStart-today)/86400000);
+    for(let i=0;i<5;i++){
+      const pd=new Date(nextStart); pd.setDate(pd.getDate()+i);
+      predictedSet.add(pd.toISOString().split('T')[0]);
+    }
+    for(let i=10;i<=16;i++){
+      const fd=new Date(lastStart); fd.setDate(fd.getDate()+i);
+      fertileSet.add(fd.toISOString().split('T')[0]);
+    }
   }
-  // Ventana fértil: ~días 11-17 del ciclo (desde último inicio)
-  for(let i = 10; i <= 16; i++) {
-    const fd = new Date(lastStart); fd.setDate(fd.getDate() + i);
-    fertileSet.add(fd.toISOString().split('T')[0]);
-  }
 
-  const wdays = ['L','M','X','J','V','S','D'];
-  let html = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:6px">';
-  wdays.forEach(w => html += `<div style="text-align:center;font-size:9px;color:var(--text3);padding:2px">${w}</div>`);
-  html += '</div><div class="ciclo-grid">';
+  const flujoColors = {manchado:'rgba(236,72,153,.2)',leve:'rgba(236,72,153,.4)',moderado:'rgba(236,72,153,.65)',abundante:'rgba(236,72,153,.9)'};
+  const flujoEmoji = {manchado:'·',leve:'○',moderado:'●',abundante:'◉'};
 
-  // Offset para empezar en lunes
-  const firstDay = days[0];
-  const offset = (firstDay.getDay() + 6) % 7;
-  for(let i = 0; i < offset; i++) html += '<div></div>';
+  // Header días semana
+  let html='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px">';
+  ['L','M','X','J','V','S','D'].forEach(w=>html+=`<div style="text-align:center;font-size:9px;color:var(--text3);padding:2px">${w}</div>`);
+  html+='</div><div class="ciclo-grid">';
 
-  days.forEach(d => {
-    const ds = d.toISOString().split('T')[0];
-    const isToday = d.getTime() === today.getTime();
-    let cls = 'ciclo-day';
-    let title = d.getDate();
-    if(startSet.has(ds)) cls += ' ciclo-start';
-    else if(flowSet.has(ds)) cls += ' ciclo-flow';
-    else if(predictedSet.has(ds)) cls += ' ciclo-predicted';
-    else if(fertileSet.has(ds)) cls += ' ciclo-fertile';
-    if(isToday) cls += ' today-mark';
-    html += `<div class="${cls}">${title}</div>`;
+  // Offset lunes
+  const offset=(days[0].getDay()+6)%7;
+  for(let i=0;i<offset;i++) html+='<div></div>';
+
+  days.forEach(d=>{
+    const ds=d.toISOString().split('T')[0];
+    const isToday=d.getTime()===today.getTime();
+    const flujoVal=flujoMap[ds];
+    let cls='ciclo-day';
+    let extra='';
+    if(startSet.has(ds)) { cls+=' ciclo-start'; extra='●'; }
+    else if(flujoVal) {
+      cls+=' ciclo-flow';
+      extra=flujoEmoji[flujoVal]||'●';
+    }
+    else if(predictedSet.has(ds)) cls+=' ciclo-predicted';
+    else if(fertileSet.has(ds)) cls+=' ciclo-fertile';
+    if(isToday) cls+=' today-mark';
+    html+=`<div class="${cls}" title="${ds}">${d.getDate()}${extra?'<br><span style="font-size:8px">'+extra+'</span>':''}</div>`;
   });
-  html += '</div>';
+  html+='</div>';
+
+  // Info próximo ciclo
+  html+=`<div style="font-size:12px;color:var(--text3);margin-top:10px">`;
+  if(nextStart && daysToNext!==null) {
+    if(daysToNext>0) html+=`Próximo ciclo estimado en <strong style="color:var(--pink2)">${daysToNext} días</strong> · ${nextStart.toLocaleDateString('es-CL')}`;
+    else if(daysToNext===0) html+=`<span style="color:var(--pink2)">El ciclo predicho comienza hoy</span>`;
+    else html+=`<span style="color:var(--amber)">El ciclo predicho lleva ${Math.abs(daysToNext)} días de retraso</span>`;
+  } else {
+    html+='Registra el inicio de tu período para activar predicciones';
+  }
+  html+=`</div>`;
 
   // Leyenda
-  const daysToNext = Math.round((nextStart - today) / 86400000);
-  html += `<div style="font-size:12px;color:var(--text3);margin-top:8px">`;
-  if(daysToNext > 0) html += `Próximo ciclo estimado en <strong style="color:var(--pink2)">${daysToNext} días</strong> (${nextStart.toLocaleDateString('es-CL')})`;
-  else html += `<span style="color:var(--pink2)">El ciclo predicho debería haber comenzado</span>`;
-  html += `</div>`;
-  html += `<div class="ciclo-legend">
+  html+=`<div class="ciclo-legend" style="margin-top:8px">
     <span><div class="ciclo-dot" style="background:var(--pink)"></div>Inicio</span>
     <span><div class="ciclo-dot" style="background:rgba(236,72,153,.5)"></div>Flujo</span>
-    <span><div class="ciclo-dot" style="background:rgba(236,72,153,.2);border:1px dashed var(--pink)"></div>Predicho</span>
+    <span><div class="ciclo-dot" style="background:rgba(236,72,153,.15);border:1px dashed var(--pink)"></div>Predicho</span>
     <span><div class="ciclo-dot" style="background:rgba(16,185,129,.3)"></div>Fértil</span>
   </div>`;
 
-  el.innerHTML = html;
+  el.innerHTML=html;
 }
 
 // Duración ciclo se maneja en chNum unificado
