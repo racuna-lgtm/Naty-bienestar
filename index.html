@@ -763,7 +763,7 @@ function loadTodayCheckin() {
     const inv=!!container.dataset.inv;
     container.querySelectorAll('.sdot').forEach((s,idx)=>{
       s.className='sdot';
-      if(idx<td[f]) s.classList.add('sel',inv?'inv':'','v'+(idx+1));
+      if(idx<td[f]){ s.classList.add('sel','v'+(idx+1)); if(inv) s.classList.add('inv'); }
     });
   });
   // Chips single
@@ -820,7 +820,10 @@ function buildScales() {
       d.addEventListener('click',()=>{
         c.querySelectorAll('.sdot').forEach((s,idx)=>{
           s.className='sdot';
-          if(idx<val){ s.classList.add('sel',inv?'inv':'','v'+(idx+1)); }
+          if(idx<val){
+            s.classList.add('sel','v'+(idx+1));
+            if(inv) s.classList.add('inv');
+          }
         });
         chipV[f]=val;
       });
@@ -1172,7 +1175,7 @@ function editCheckin(date) {
     const inv=!!container.dataset.inv;
     container.querySelectorAll('.sdot').forEach((s,idx)=>{
       s.className='sdot';
-      if(idx<entry[f]) s.classList.add('sel',inv?'inv':'','v'+(idx+1));
+      if(idx<entry[f]){ s.classList.add('sel','v'+(idx+1)); if(inv) s.classList.add('inv'); }
     });
   });
   ['semag','ejercicio','alcohol','dish_int'].forEach(f=>{
