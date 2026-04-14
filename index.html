@@ -235,6 +235,7 @@ input.nota{min-height:40px}
     <button class="tab-btn" data-tab="checkin"><span class="ti">✨</span>Check-in</button>
     <button class="tab-btn" data-tab="historial"><span class="ti">📊</span>Historial</button>
     <button class="tab-btn" data-tab="salud"><span class="ti">🏥</span>Salud</button>
+    <button class="tab-btn" data-tab="gineco"><span class="ti">🌸</span>Gineco</button>
     <button class="tab-btn" data-tab="reporte"><span class="ti">📄</span>Reporte</button>
     <button class="tab-btn" data-tab="config"><span class="ti">⚙️</span>Config</button>
   </div>
@@ -329,6 +330,7 @@ input.nota{min-height:40px}
         <button class="chip" data-f="alcohol" data-v="mas">Más de una</button>
       </div>
       <div class="toggle-row" style="margin-top:12px"><span class="ttext">Tuve conexión social significativa</span><div class="toggle" data-f="social" onclick="tog(this)"></div></div>
+      <div class="toggle-row"><span class="ttext">💜 Tuve relaciones sexuales</span><div class="toggle" data-f="relaciones" onclick="tog(this)"></div></div>
       <div class="scale-row" style="margin-top:12px"><span class="scale-label">Productividad percibida</span><div class="scale-dots" data-f="productiv"></div></div>
     </div>
     <div class="card">
@@ -472,18 +474,13 @@ input.nota{min-height:40px}
 
     <!-- Datos fijos -->
     <div class="card">
-      <div class="card-label"><div class="dot6" style="background:var(--violet)"></div>Dispositivos / tratamientos activos</div>
+      <div class="card-label"><div class="dot6" style="background:var(--violet)"></div>Tratamientos activos</div>
       <div style="font-size:14px;color:var(--text2)">DIU Asertia — insertado nov 2024</div>
       <div style="font-size:13px;color:var(--text3);margin-top:3px">Vencimiento: noviembre 2029 · 5 años</div>
-      <div style="font-size:13px;color:var(--text3);margin-top:6px">Semaglutida — tratamiento activo para bajar de peso</div>
+      <div style="font-size:13px;color:var(--text3);margin-top:6px">Semaglutida — tratamiento activo</div>
     </div>
 
-    <div style="font-size:12px;color:var(--text3);margin-bottom:8px;padding:0 2px">Registrar episodio</div>
-    <button class="ep-btn" onclick="openEp('itu')"><span class="ep-icon">🦠</span><div><span class="ep-lbl">Infección urinaria</span><span class="ep-sub">Síntomas, tratamiento, resolución</span></div></button>
-    <button class="ep-btn" onclick="openEp('cand')"><span class="ep-icon">🌡️</span><div><span class="ep-lbl">Candidiasis</span><span class="ep-sub">Flujo, picazón, ardor, tratamiento</span></div></button>
-    <button class="ep-btn" onclick="openEp('gine')"><span class="ep-icon">🌸</span><div><span class="ep-lbl">Síntoma ginecológico</span><span class="ep-sub">Ardor, molestia, spotting, ciclo</span></div></button>
-    <button class="ep-btn" onclick="openEp('spm')"><span class="ep-icon">🌙</span><div><span class="ep-lbl">SPM</span><span class="ep-sub">Irritabilidad, hinchazón, ánimo, antojos</span></div></button>
-    <button class="ep-btn" onclick="openEp('sex')"><span class="ep-icon">💜</span><div><span class="ep-lbl">Salud sexual</span><span class="ep-sub">Bienestar, molestia, lubricación</span></div></button>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:8px;padding:0 2px">Episodios de salud general</div>
     <button class="ep-btn" onclick="openEp('ctrl')"><span class="ep-icon">📋</span><div><span class="ep-lbl">Control médico</span><span class="ep-sub">Especialidad, notas, indicaciones</span></div></button>
 
     <div id="ep-list" style="margin-top:8px"></div>
@@ -494,6 +491,52 @@ input.nota{min-height:40px}
       <div style="font-size:13px;color:var(--text3);margin-bottom:10px">Si tienes datos de prueba o quieres empezar de cero, borra todo aquí. Esta acción elimina también los datos en Supabase.</div>
       <button onclick="clearAllData()" style="width:100%;padding:10px;border-radius:10px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif">🗑 Borrar todos los datos</button>
     </div>
+  </div>
+
+  <!-- GINECOLOGÍA -->
+  <div class="screen" id="tab-gineco">
+    <div class="sh">Ginecología<small>Ciclo, episodios y salud sexual</small></div>
+
+    <!-- Ciclo menstrual -->
+    <div class="card">
+      <div class="card-label"><div class="dot6" style="background:var(--pink)"></div>Ciclo menstrual</div>
+      <div style="font-size:13px;color:var(--text3);margin-bottom:10px">El flujo se registra desde tu check-in diario. Aquí ves el calendario y puedes ajustar la duración promedio de tu ciclo.</div>
+      <div class="num-row" style="margin-top:0">
+        <button class="num-btn" onclick="chNum('ciclo_dur',-1)">−</button>
+        <div><div class="num-val" id="v-ciclo_dur">28</div><div class="num-lbl">días promedio del ciclo</div></div>
+        <button class="num-btn" onclick="chNum('ciclo_dur',1)">+</button>
+      </div>
+      <button class="save-btn" style="font-size:14px;padding:10px;margin-top:12px" onclick="registrarCiclo()">
+        📅 Marcar inicio de período hoy
+      </button>
+      <div id="ciclo-calendar" style="margin-top:14px"></div>
+    </div>
+
+    <!-- DIU info -->
+    <div class="card">
+      <div class="card-label"><div class="dot6" style="background:var(--violet)"></div>Dispositivo activo</div>
+      <div style="font-size:14px;color:var(--text2);font-weight:500">DIU Asertia</div>
+      <div style="font-size:13px;color:var(--text3);margin-top:4px">Insertado: noviembre 2024</div>
+      <div style="font-size:13px;color:var(--text3)">Vencimiento: noviembre 2029</div>
+      <div style="margin-top:10px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text3);margin-bottom:4px">
+          <span>Progreso</span><span id="diu-años">— años</span>
+        </div>
+        <div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden">
+          <div id="diu-barra" style="height:100%;background:linear-gradient(90deg,var(--violet),var(--pink));border-radius:3px;transition:width .5s"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Episodios ginecológicos -->
+    <div style="font-size:12px;color:var(--text3);margin-bottom:8px;padding:0 2px">Registrar episodio</div>
+    <button class="ep-btn" onclick="openEp('itu')"><span class="ep-icon">🦠</span><div><span class="ep-lbl">Infección urinaria (ITU)</span><span class="ep-sub">Ardor, frecuencia, tratamiento</span></div></button>
+    <button class="ep-btn" onclick="openEp('cand')"><span class="ep-icon">🌡️</span><div><span class="ep-lbl">Candidiasis</span><span class="ep-sub">Flujo, picazón, ardor, tratamiento</span></div></button>
+    <button class="ep-btn" onclick="openEp('gine')"><span class="ep-icon">🌸</span><div><span class="ep-lbl">Síntoma ginecológico</span><span class="ep-sub">Ardor, molestia, spotting, ciclo</span></div></button>
+    <button class="ep-btn" onclick="openEp('spm')"><span class="ep-icon">🌙</span><div><span class="ep-lbl">SPM</span><span class="ep-sub">Irritabilidad, hinchazón, ánimo, antojos</span></div></button>
+    <button class="ep-btn" onclick="openEp('sex')"><span class="ep-icon">💜</span><div><span class="ep-lbl">Salud sexual</span><span class="ep-sub">Bienestar, molestia, lubricación</span></div></button>
+
+    <div id="ep-gine-list" style="margin-top:8px"></div>
   </div>
 
   <!-- REPORTE PDF -->
@@ -562,21 +605,6 @@ input.nota{min-height:40px}
           onchange="saveNotifTime()">
       </div>
       <div id="notif-status" style="font-size:12px;margin-top:8px;color:var(--text3)"></div>
-    </div>
-
-    <!-- Ciclo menstrual -->
-    <div class="card">
-      <div class="card-label"><div class="dot6" style="background:var(--pink)"></div>Ciclo menstrual</div>
-      <div style="font-size:13px;color:var(--text3);margin-bottom:12px">Registra el inicio de tu ciclo para hacer seguimiento. Con el DIU Asertia el flujo puede ser irregular — más razón para registrarlo.</div>
-      <div class="num-row" style="margin-top:0">
-        <button class="num-btn" onclick="chNum('ciclo_dur',-1)">−</button>
-        <div><div class="num-val" id="v-ciclo_dur">28</div><div class="num-lbl">días promedio</div></div>
-        <button class="num-btn" onclick="chNum('ciclo_dur',1)">+</button>
-      </div>
-      <button class="save-btn" style="font-size:14px;padding:10px;margin-top:12px" onclick="registrarCiclo()">
-        📅 Registrar inicio de ciclo hoy
-      </button>
-      <div id="ciclo-calendar" style="margin-top:14px"></div>
     </div>
 
     <!-- Gráfico de peso -->
@@ -650,6 +678,24 @@ input.nota{min-height:40px}
   <div class="card">
     <div class="card-label">¿Próximo control?</div>
     <input type="date" class="nota" id="exam-proximo" style="min-height:40px">
+  </div>
+  <div class="card">
+    <div class="card-label">📷 Foto del examen (opcional)</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:8px">Puedes sacar una foto del resultado o subir una imagen desde tu galería.</div>
+    <label style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px;border:1.5px dashed var(--border2);border-radius:var(--rs);cursor:pointer;background:var(--surface)">
+      <div id="exam-foto-preview" style="width:100%;display:none">
+        <img id="exam-foto-img" style="width:100%;border-radius:8px;max-height:200px;object-fit:contain" src="">
+        <div style="text-align:center;margin-top:6px">
+          <button type="button" onclick="clearExamFoto()" style="font-size:11px;color:var(--red);background:none;border:none;cursor:pointer">✕ Quitar foto</button>
+        </div>
+      </div>
+      <div id="exam-foto-placeholder" style="text-align:center">
+        <div style="font-size:28px">📷</div>
+        <div style="font-size:13px;color:var(--text3)">Tomar foto o subir imagen</div>
+      </div>
+      <input type="file" id="exam-foto-input" accept="image/*" capture="environment"
+        onchange="previewExamFoto(this)" style="display:none">
+    </label>
   </div>
   <button class="save-btn" onclick="saveExam()">Guardar examen</button>
 </div>
@@ -854,7 +900,8 @@ function initApp() {
       if(btn.dataset.tab==='historial') renderHistorial();
       if(btn.dataset.tab==='reporte') buildPreview();
       if(btn.dataset.tab==='checkin') loadTodayCheckin();
-      if(btn.dataset.tab==='config') { renderCiclo(); renderPesoChart(); }
+      if(btn.dataset.tab==='config') { renderPesoChart(); }
+      if(btn.dataset.tab==='gineco') { renderCiclo(); renderEpGineco(); renderDIUbarra(); }
     });
   });
 }
@@ -1013,7 +1060,7 @@ async function saveCheckin() {
     bochorno:togV.bochorno||false,
     ejercicio:chipV.ejercicio||null, airel:togV.airel||false,
     agua:numV.agua, alcohol:chipV.alcohol||null,
-    social:togV.social||false, productiv:chipV.productiv||null,
+    social:togV.social||false, relaciones:togV.relaciones||false, productiv:chipV.productiv||null,
     deposicion:togV.deposicion||false, dep_dif:togV.dep_dif||false,
     hinchazon:togV.hinchazon||false, fibra:togV.fibra||false,
     dishidr:togV.dishidr||false, dish_int:chipV.dish_int||null,
@@ -1350,6 +1397,16 @@ async function deleteCheckin(date) {
   if(online) await sbFetch('checkins','DELETE',null,`?date=eq.${date}`);
 }
 
+async function deleteExamen(idx) {
+  if(!confirm('¿Borrar este examen?')) return;
+  const ex = D.examenes[idx];
+  D.examenes.splice(idx,1);
+  saveLocal();
+  renderExamenes();
+  showToast('🗑 Examen borrado');
+  if(online && ex?.id) await sbFetch('examenes','DELETE',null,`?id=eq.${ex.id}`);
+}
+
 async function deleteEpisodio(idx) {
   if(!confirm('¿Borrar este episodio?')) return;
   const ep=D.episodios[idx];
@@ -1543,17 +1600,28 @@ async function saveExam(){
   const tipo=document.getElementById('exam-tipo').value.trim();
   if(!tipo){showToast('Escribe el tipo de examen');return;}
   const res=document.querySelector('.chip[data-f="exam-res"].sel')?.dataset.v||'pendiente';
+
+  // Mostrar estado de carga
+  showToast('Guardando...');
+  let fotoUrl = null;
+  if(examFotoFile) {
+    fotoUrl = await uploadExamFoto(examFotoFile);
+    if(!fotoUrl) showToast('⚠ Foto no se pudo subir, guardando sin foto');
+  }
+
   const entry={
     tipo,
     fecha:document.getElementById('exam-fecha').value||new Date().toISOString().split('T')[0],
     resultado:res,
     notas:document.getElementById('exam-notas').value.trim(),
     medico:document.getElementById('exam-medico').value.trim(),
-    proximo:document.getElementById('exam-proximo').value||null
+    proximo:document.getElementById('exam-proximo').value||null,
+    foto_url: fotoUrl
   };
   D.examenes.unshift(entry);
   saveLocal();
   closeModal('exam-modal');
+  clearExamFoto();
   showToast('✓ Examen guardado');
   renderExamenes();
   if(online) {
@@ -1567,16 +1635,18 @@ function renderExamenes(){
   if(!D.examenes.length){el.innerHTML='';return;}
   const icons={normal:'✓',alterado:'⚠',pendiente:'⏳'};
   const colors={normal:'var(--green)',alterado:'var(--amber)',pendiente:'var(--text3)'};
-  el.innerHTML=D.examenes.map(e=>`
+  el.innerHTML=D.examenes.map((e,idx)=>`
     <div class="exam-item">
       <div class="exam-icon">🔬</div>
-      <div>
+      <div style="flex:1">
         <div class="exam-name">${e.tipo}</div>
         <div class="exam-meta">${e.fecha}${e.medico?' · '+e.medico:''}</div>
-        <div class="exam-result" style="color:${colors[e.resultado]}">${icons[e.resultado]} ${e.resultado.charAt(0).toUpperCase()+e.resultado.slice(1)}</div>
+        <div class="exam-result" style="color:${colors[e.resultado]}">${icons[e.resultado]} ${e.resultado?.charAt(0).toUpperCase()+e.resultado?.slice(1)||''}</div>
         ${e.notas?`<div style="font-size:12px;color:var(--text3);margin-top:3px">${e.notas}</div>`:''}
         ${e.proximo?`<div style="font-size:12px;color:var(--blue);margin-top:3px">Próximo: ${e.proximo}</div>`:''}
+        ${e.foto_url?`<div style="margin-top:8px"><a href="${e.foto_url}" target="_blank"><img src="${e.foto_url}" style="width:80px;height:60px;object-fit:cover;border-radius:6px;border:1px solid var(--border2)"></a></div>`:''}
       </div>
+      <button onclick="deleteExamen(${idx})" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;flex-shrink:0">✕</button>
     </div>`).join('');
 }
 
@@ -2156,6 +2226,91 @@ function importBackup(e) {
   reader.readAsText(file);
 }
 
+
+// ====== FOTO EXAMEN ======
+let examFotoBlob = null;
+let examFotoFile = null;
+
+function previewExamFoto(input) {
+  if(!input.files || !input.files[0]) return;
+  examFotoFile = input.files[0];
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('exam-foto-img').src = e.target.result;
+    document.getElementById('exam-foto-preview').style.display = 'block';
+    document.getElementById('exam-foto-placeholder').style.display = 'none';
+  };
+  reader.readAsDataURL(examFotoFile);
+}
+
+function clearExamFoto() {
+  examFotoFile = null;
+  document.getElementById('exam-foto-img').src = '';
+  document.getElementById('exam-foto-preview').style.display = 'none';
+  document.getElementById('exam-foto-placeholder').style.display = 'block';
+  document.getElementById('exam-foto-input').value = '';
+}
+
+async function uploadExamFoto(file) {
+  if(!file || !online) return null;
+  try {
+    const ext = file.name.split('.').pop() || 'jpg';
+    const filename = `exam_${Date.now()}.${ext}`;
+    const res = await fetch(`${SB_URL}/storage/v1/object/examenes/${filename}`, {
+      method: 'POST',
+      headers: {
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + SB_KEY,
+        'Content-Type': file.type || 'image/jpeg'
+      },
+      body: file
+    });
+    if(!res.ok) { console.error('Upload error:', await res.text()); return null; }
+    return `${SB_URL}/storage/v1/object/public/examenes/${filename}`;
+  } catch(e) { console.error('Upload error:', e); return null; }
+}
+
+// ====== DIU BARRA DE PROGRESO ======
+function renderDIUbarra() {
+  const inicio = new Date('2024-11-01');
+  const fin = new Date('2029-11-01');
+  const ahora = new Date();
+  const total = fin - inicio;
+  const transcurrido = ahora - inicio;
+  const pct = Math.min(100, Math.round(transcurrido / total * 100));
+  const años = (transcurrido / (365.25*86400000)).toFixed(1);
+  const el = document.getElementById('diu-barra');
+  const el2 = document.getElementById('diu-años');
+  if(el) el.style.width = pct + '%';
+  if(el2) el2.textContent = años + ' / 5 años (' + pct + '%)';
+}
+
+// ====== RENDER EPISODIOS GINECO ======
+function renderEpGineco() {
+  const el = document.getElementById('ep-gine-list');
+  if(!el) return;
+  const tipos = ['itu','cand','gine','spm','sex'];
+  const eps = D.episodios.filter(e=>tipos.includes(e.type));
+  if(!eps.length) { el.innerHTML='<div style="font-size:12px;color:var(--text3);padding:8px 0">Sin episodios registrados aún.</div>'; return; }
+  const icons = {itu:'🦠',cand:'🌡️',gine:'🌸',spm:'🌙',sex:'💜'};
+  el.innerHTML = '<div style="font-size:12px;color:var(--text3);margin-bottom:8px">Episodios registrados</div>' +
+    eps.slice(0,15).map((e,idx)=>{
+      const d = new Date(e.date);
+      const tags = Array.isArray(e.data?.sintomas) ? e.data.sintomas : [];
+      const globalIdx = D.episodios.indexOf(e);
+      return `<div class="hist-day">
+        <div class="hist-header">
+          <span class="hist-date">${icons[e.type]||''} ${epCfg[e.type]?.title.replace(/[^\w\sáéíóúñÁÉÍÓÚÑ]/g,'').trim()||e.type}</span>
+          <span style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:12px;color:var(--text3)">${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}</span>
+            <button onclick="deleteEpisodio(${globalIdx})" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">✕</button>
+          </span>
+        </div>
+        ${tags.length?`<div class="hist-tags">${tags.map(t=>`<span class="htag sym">${t}</span>`).join('')}</div>`:''}
+        ${e.data?.notas?`<div style="font-size:12px;color:var(--text3);margin-top:6px">${e.data.notas}</div>`:''}
+      </div>`;
+    }).join('');
+}
 
 // ====== MODAL ======
 function openModal(id){ document.getElementById(id).classList.add('open'); }
