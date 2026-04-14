@@ -469,7 +469,6 @@ input.nota{min-height:40px}
       <button onclick="clearAllData()" style="width:100%;padding:10px;border-radius:10px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif">🗑 Borrar todos los datos</button>
     </div>
   </div>
-</div>
 
   <!-- REPORTE PDF -->
   <div class="screen" id="tab-reporte">
@@ -580,6 +579,7 @@ input.nota{min-height:40px}
       </div>
     </div>
   </div>
+</div><!-- fin #app -->
 
 <!-- EPISODE MODAL -->
 <div class="modal" id="ep-modal">
@@ -2087,6 +2087,10 @@ function importBackup(e) {
   reader.readAsText(file);
 }
 
+
+// ====== MODAL ======
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 
 // ====== TOAST ======
 function showToast(msg){
