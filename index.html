@@ -233,9 +233,9 @@ input.nota{min-height:40px}
   <div class="tab-bar">
     <button class="tab-btn active" data-tab="home"><span class="ti">🏠</span>Inicio</button>
     <button class="tab-btn" data-tab="checkin"><span class="ti">✨</span>Check-in</button>
-    <button class="tab-btn" data-tab="historial"><span class="ti">📊</span>Historial</button>
-    <button class="tab-btn" data-tab="salud"><span class="ti">🏥</span>Salud</button>
     <button class="tab-btn" data-tab="gineco"><span class="ti">🌸</span>Gineco</button>
+    <button class="tab-btn" data-tab="salud"><span class="ti">🏥</span>Salud</button>
+    <button class="tab-btn" data-tab="historial"><span class="ti">📊</span>Historial</button>
     <button class="tab-btn" data-tab="reporte"><span class="ti">📄</span>Reporte</button>
     <button class="tab-btn" data-tab="config"><span class="ti">⚙️</span>Config</button>
   </div>
@@ -264,13 +264,18 @@ input.nota{min-height:40px}
   <!-- CHECK-IN -->
   <div class="screen" id="tab-checkin">
     <div class="sh">Check-in matinal<small id="ci-date"></small></div>
+
+    <!-- BLOQUE MAÑANA -->
+    <div style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--violet2);margin-bottom:6px;padding:0 2px">☀️ Ahora, al despertar</div>
+
     <div class="card">
-      <div class="card-label"><div class="dot6" style="background:var(--violet)"></div>Cómo amanecí hoy</div>
+      <div class="card-label"><div class="dot6" style="background:var(--violet)"></div>Cómo amanecí</div>
       <div class="scale-row"><span class="scale-label">😊 Ánimo</span><div class="scale-dots" data-f="animo"></div></div>
       <div class="scale-row"><span class="scale-label">⚡ Energía</span><div class="scale-dots" data-f="energia"></div></div>
       <div class="scale-row"><span class="scale-label">😰 Ansiedad</span><div class="scale-dots" data-f="ansiedad" data-inv="1"></div></div>
       <div class="scale-row"><span class="scale-label">🧠 Concentración</span><div class="scale-dots" data-f="concentracion"></div></div>
     </div>
+
     <div class="card">
       <div class="card-label"><div class="dot6" style="background:var(--blue)"></div>Sueño de anoche</div>
       <div class="scale-row"><span class="scale-label">Calidad</span><div class="scale-dots" data-f="sueno_cal"></div></div>
@@ -281,12 +286,23 @@ input.nota{min-height:40px}
       </div>
       <div style="margin-top:12px">
         <div class="toggle-row"><span class="ttext">Desperté antes de hora</span><div class="toggle" data-f="desperto" onclick="tog(this)"></div></div>
-        <div class="toggle-row"><span class="ttext">Tomé magnesio</span><div class="toggle" data-f="magnesio" onclick="tog(this)"></div></div>
+        <div class="toggle-row"><span class="ttext">Tomé magnesio anoche</span><div class="toggle" data-f="magnesio" onclick="tog(this)"></div></div>
       </div>
     </div>
+
     <div class="card">
-      <div class="card-label"><div class="dot6" style="background:var(--amber)"></div>Semaglutida</div>
-      <div style="font-size:13px;color:var(--text3);margin-bottom:8px">¿Síntomas hoy?</div>
+      <div class="card-label"><div class="dot6" style="background:var(--pink)"></div>Cómo está mi cuerpo ahora</div>
+      <div class="toggle-row"><span class="ttext">Dolor de cabeza</span><div class="toggle" data-f="dcabeza" onclick="tog(this)"></div></div>
+      <div class="toggle-row"><span class="ttext">Dolor corporal / articular</span><div class="toggle" data-f="dcorporal" onclick="tog(this)"></div></div>
+      <div class="toggle-row"><span class="ttext">Sensación de calor / bochorno</span><div class="toggle" data-f="bochorno" onclick="tog(this)"></div></div>
+    </div>
+
+    <!-- BLOQUE AYER -->
+    <div style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin:14px 0 6px;padding:0 2px">🌙 De ayer</div>
+
+    <div class="card">
+      <div class="card-label"><div class="dot6" style="background:var(--amber)"></div>Semaglutida ayer</div>
+      <div style="font-size:13px;color:var(--text3);margin-bottom:8px">¿Tuviste síntomas?</div>
       <div class="chips">
         <button class="chip" data-f="semag" data-v="ninguno">Sin síntomas ✓</button>
         <button class="chip" data-f="semag" data-v="nauseas">Náuseas</button>
@@ -300,12 +316,7 @@ input.nota{min-height:40px}
       </div>
       <div class="scale-row" style="margin-top:14px"><span class="scale-label">Apetito / saciedad</span><div class="scale-dots" data-f="apetito"></div></div>
     </div>
-    <div class="card">
-      <div class="card-label"><div class="dot6" style="background:var(--pink)"></div>Cuerpo</div>
-      <div class="toggle-row"><span class="ttext">Dolor de cabeza</span><div class="toggle" data-f="dcabeza" onclick="tog(this)"></div></div>
-      <div class="toggle-row"><span class="ttext">Dolor corporal / articular</span><div class="toggle" data-f="dcorporal" onclick="tog(this)"></div></div>
-      <div class="toggle-row"><span class="ttext">Sensación de calor / bochorno</span><div class="toggle" data-f="bochorno" onclick="tog(this)"></div></div>
-    </div>
+
     <div class="card">
       <div class="card-label"><div class="dot6" style="background:var(--green)"></div>Movimiento de ayer</div>
       <div class="chips">
@@ -314,27 +325,31 @@ input.nota{min-height:40px}
         <button class="chip" data-f="ejercicio" data-v="pilates">Pilates</button>
         <button class="chip" data-f="ejercicio" data-v="otro">Otro</button>
       </div>
-      <div class="toggle-row" style="margin-top:12px"><span class="ttext">Salí al aire libre hoy</span><div class="toggle" data-f="airel" onclick="tog(this)"></div></div>
+      <div class="toggle-row" style="margin-top:12px"><span class="ttext">Salí al aire libre</span><div class="toggle" data-f="airel" onclick="tog(this)"></div></div>
     </div>
+
     <div class="card">
-      <div class="card-label"><div class="dot6" style="background:var(--blue)"></div>Hábitos</div>
+      <div class="card-label"><div class="dot6" style="background:var(--blue)"></div>Hábitos de ayer</div>
       <div class="num-row">
         <button class="num-btn" onclick="chNum('agua',-1)">−</button>
         <div><div class="num-val" id="v-agua">6</div><div class="num-lbl">vasos de agua</div></div>
         <button class="num-btn" onclick="chNum('agua',1)">+</button>
       </div>
-      <div style="margin-top:14px;font-size:13px;color:var(--text3);margin-bottom:6px">Alcohol ayer</div>
+      <div style="margin-top:14px;font-size:13px;color:var(--text3);margin-bottom:6px">Alcohol</div>
       <div class="chips">
         <button class="chip" data-f="alcohol" data-v="nada">Nada</button>
         <button class="chip" data-f="alcohol" data-v="una">Una copa</button>
         <button class="chip" data-f="alcohol" data-v="mas">Más de una</button>
       </div>
       <div class="toggle-row" style="margin-top:12px"><span class="ttext">Tuve conexión social significativa</span><div class="toggle" data-f="social" onclick="tog(this)"></div></div>
-      <div class="toggle-row"><span class="ttext">💜 Tuve relaciones sexuales</span><div class="toggle" data-f="relaciones" onclick="tog(this)"></div></div>
       <div class="scale-row" style="margin-top:12px"><span class="scale-label">Productividad percibida</span><div class="scale-dots" data-f="productiv"></div></div>
     </div>
+
+    <!-- OPCIONALES -->
+    <div style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin:14px 0 6px;padding:0 2px">➕ Opcional</div>
+
     <div class="card">
-      <div class="opt-toggle" id="ot-ciclo" onclick="togOpt('ciclo')"><span class="arr">▶</span> 🌸 Período menstrual (opcional)</div>
+      <div class="opt-toggle" id="ot-ciclo" onclick="togOpt('ciclo')"><span class="arr">▶</span> 🌸 Período menstrual</div>
       <div class="opt-section" id="os-ciclo">
         <div class="toggle-row" style="margin-bottom:10px">
           <span class="ttext">Estoy con el período hoy</span>
@@ -360,7 +375,7 @@ input.nota{min-height:40px}
       </div>
     </div>
     <div class="card">
-      <div class="opt-toggle" id="ot-dig" onclick="togOpt('dig')"><span class="arr">▶</span> Digestión (opcional)</div>
+      <div class="opt-toggle" id="ot-dig" onclick="togOpt('dig')"><span class="arr">▶</span> Digestión</div>
       <div class="opt-section" id="os-dig">
         <div class="toggle-row"><span class="ttext">Deposición hoy</span><div class="toggle" data-f="deposicion" onclick="tog(this)"></div></div>
         <div class="toggle-row"><span class="ttext">Dificultad / esfuerzo</span><div class="toggle" data-f="dep_dif" onclick="tog(this)"></div></div>
@@ -369,7 +384,7 @@ input.nota{min-height:40px}
       </div>
     </div>
     <div class="card">
-      <div class="opt-toggle" id="ot-dish" onclick="togOpt('dish')"><span class="arr">▶</span> Dishidrosis (opcional)</div>
+      <div class="opt-toggle" id="ot-dish" onclick="togOpt('dish')"><span class="arr">▶</span> Dishidrosis en manos</div>
       <div class="opt-section" id="os-dish">
         <div class="toggle-row"><span class="ttext">Presente hoy</span><div class="toggle" data-f="dishidr" onclick="tog(this)"></div></div>
         <div class="chips" style="margin-top:8px">
@@ -535,6 +550,21 @@ input.nota{min-height:40px}
     <button class="ep-btn" onclick="openEp('gine')"><span class="ep-icon">🌸</span><div><span class="ep-lbl">Síntoma ginecológico</span><span class="ep-sub">Ardor, molestia, spotting, ciclo</span></div></button>
     <button class="ep-btn" onclick="openEp('spm')"><span class="ep-icon">🌙</span><div><span class="ep-lbl">SPM</span><span class="ep-sub">Irritabilidad, hinchazón, ánimo, antojos</span></div></button>
     <button class="ep-btn" onclick="openEp('sex')"><span class="ep-icon">💜</span><div><span class="ep-lbl">Salud sexual</span><span class="ep-sub">Bienestar, molestia, lubricación</span></div></button>
+
+    <!-- Registro rápido relaciones -->
+    <div class="card" style="margin-top:4px">
+      <div class="card-label"><div class="dot6" style="background:var(--violet)"></div>Registro rápido</div>
+      <div class="toggle-row">
+        <span class="ttext">💜 Relaciones sexuales hoy</span>
+        <div class="toggle" id="rel-toggle" onclick="toggleRelaciones(this)"></div>
+      </div>
+      <div id="rel-detalle" style="display:none;margin-top:12px">
+        <div class="scale-row"><span class="scale-label">Bienestar general</span><div class="scale-dots" data-f="rel_bienestar"></div></div>
+        <div class="toggle-row" style="margin-top:8px"><span class="ttext">Molestia o dolor</span><div class="toggle" data-f="rel_dolor" onclick="tog(this)"></div></div>
+        <div class="toggle-row"><span class="ttext">Sequedad / lubricación baja</span><div class="toggle" data-f="rel_sequedad" onclick="tog(this)"></div></div>
+        <button class="save-btn" style="font-size:13px;padding:9px;margin-top:10px" onclick="saveRelaciones()">Registrar</button>
+      </div>
+    </div>
 
     <div id="ep-gine-list" style="margin-top:8px"></div>
   </div>
@@ -897,11 +927,15 @@ function initApp() {
       document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
       btn.classList.add('active');
       document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
-      if(btn.dataset.tab==='historial') renderHistorial();
+      if(btn.dataset.tab==='historial') {
+        renderHistorial();
+        // Re-renderizar gráfico después de que la tab sea visible
+        setTimeout(()=>renderHistorial(), 100);
+      }
       if(btn.dataset.tab==='reporte') buildPreview();
       if(btn.dataset.tab==='checkin') loadTodayCheckin();
-      if(btn.dataset.tab==='config') { renderPesoChart(); }
-      if(btn.dataset.tab==='gineco') { renderCiclo(); renderEpGineco(); renderDIUbarra(); }
+      if(btn.dataset.tab==='config') { renderPesoChart(); setTimeout(()=>renderPesoChart(),100); }
+      if(btn.dataset.tab==='gineco') { renderCiclo(); renderEpGineco(); renderDIUbarra(); setTimeout(()=>renderCiclo(),100); }
     });
   });
 }
@@ -1151,12 +1185,12 @@ function renderHome() {
 
 // ====== CHART ENGINE ======
 function drawSparkline(svgId, tipId, data, series) {
-  const svg=document.getElementById(svgId);
+  const svg = document.getElementById(svgId);
   if(!svg) return;
-  const tip=document.getElementById(tipId);
-  // Usar ancho real o fallback para tabs ocultas
-  const W=svg.parentElement.clientWidth||svg.closest('.screen')?.clientWidth||340;
-  const H=parseInt(svg.style.height)||120;
+  const tip = document.getElementById(tipId);
+  // Ancho fijo confiable — no depender del clientWidth cuando la tab está oculta
+  const W = Math.max(svg.parentElement.clientWidth || 0, svg.closest('.card')?.clientWidth || 0, 320);
+  const H = parseInt(svg.style.height) || 120;
   const pad={t:10,r:10,b:20,l:24};
   const cw=W-pad.l-pad.r, ch=H-pad.t-pad.b;
   const n=data.length;
@@ -2226,6 +2260,35 @@ function importBackup(e) {
   reader.readAsText(file);
 }
 
+
+function toggleRelaciones(el) {
+  el.classList.toggle('on');
+  const det = document.getElementById('rel-detalle');
+  if(det) det.style.display = el.classList.contains('on') ? 'block' : 'none';
+}
+
+async function saveRelaciones() {
+  const today = new Date().toISOString().split('T')[0];
+  const entry = {
+    type: 'sex',
+    date: today,
+    data: {
+      bienestar: chipV.rel_bienestar || null,
+      dolor: togV.rel_dolor || false,
+      sequedad: togV.rel_sequedad || false,
+      notas: ''
+    }
+  };
+  D.episodios.unshift(entry);
+  saveLocal();
+  // Reset
+  document.getElementById('rel-toggle').classList.remove('on');
+  document.getElementById('rel-detalle').style.display = 'none';
+  showToast('✓ Relaciones registradas');
+  renderEpGineco();
+  if(online) await sbFetch('episodios','POST',entry);
+  else { pending.push({type:'episodio',data:entry}); savePending(); }
+}
 
 // ====== FOTO EXAMEN ======
 let examFotoBlob = null;
