@@ -805,11 +805,34 @@ async function syncAll() {
       sbFetch('pesos','GET',null,'?order=date.desc&limit=100'),
       sbFetch('examenes','GET',null,'?order=created_at.desc&limit=50'),
     ]);
-    // Solo actualizar si Supabase devolvió algo (array, aunque vacío)
-    if(Array.isArray(checkins)) D.checkins = checkins;
-    if(Array.isArray(episodios)) D.episodios = episodios;
-    if(Array.isArray(pesos)) D.pesos = pesos;
+
+    // Reemplazar con datos de Supabase, deduplicando
+    if(Array.isArray(checkins)) {
+      // Deduplicar por fecha — quedarse con el más reciente de cada día
+      const seen = new Set();
+      D.checkins = checkins.filter(c => {
+        if(seen.has(c.date)) return false;
+        seen.add(c.date); return true;
+      });
+    }
+    if(Array.isArray(episodios)) {
+      // Deduplicar por id
+      const seen = new Set();
+      D.episodios = episodios.filter(e => {
+        const key = e.id || (e.type+e.date+JSON.stringify(e.data));
+        if(seen.has(key)) return false;
+        seen.add(key); return true;
+      });
+    }
+    if(Array.isArray(pesos)) {
+      const seen = new Set();
+      D.pesos = pesos.filter(p => {
+        if(seen.has(p.date)) return false;
+        seen.add(p.date); return true;
+      });
+    }
     if(Array.isArray(examenes)) D.examenes = examenes;
+
     saveLocal();
 
     // Subir pendientes
@@ -820,7 +843,7 @@ async function syncAll() {
     }
     showSyncStatus('');
 
-    // Re-renderizar todo con datos frescos de Supabase
+    // Re-renderizar todo con datos frescos
     renderHome();
     renderHistorial();
     renderEpisodios();
