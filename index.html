@@ -799,30 +799,38 @@ async function syncAll() {
   if(!online) return;
   showSyncStatus('Sincronizando...');
   try {
-    // Cargar datos desde Supabase
     const [checkins, episodios, pesos, examenes] = await Promise.all([
       sbFetch('checkins','GET',null,'?order=date.desc&limit=180'),
       sbFetch('episodios','GET',null,'?order=date.desc&limit=100'),
       sbFetch('pesos','GET',null,'?order=date.desc&limit=100'),
       sbFetch('examenes','GET',null,'?order=created_at.desc&limit=50'),
     ]);
-    if(checkins) D.checkins = checkins;
-    if(episodios) D.episodios = episodios;
-    if(pesos) D.pesos = pesos;
-    if(examenes) D.examenes = examenes;
+    // Solo actualizar si Supabase devolvió algo (array, aunque vacío)
+    if(Array.isArray(checkins)) D.checkins = checkins;
+    if(Array.isArray(episodios)) D.episodios = episodios;
+    if(Array.isArray(pesos)) D.pesos = pesos;
+    if(Array.isArray(examenes)) D.examenes = examenes;
     saveLocal();
 
-    // Subir pendientes si hay
+    // Subir pendientes
     if(pending.length) {
       for(const p of pending) await executePending(p);
       pending = [];
       savePending();
     }
     showSyncStatus('');
+
+    // Re-renderizar todo con datos frescos de Supabase
     renderHome();
     renderHistorial();
     renderEpisodios();
+    renderEpGineco();
     renderExamenes();
+    if(D.pesos.length) {
+      numV.peso = D.pesos[0].kg;
+      const vp = document.getElementById('v-peso');
+      if(vp) vp.textContent = numV.peso;
+    }
   } catch(e) {
     console.error('Sync error:', e);
     showSyncStatus('');
@@ -904,10 +912,11 @@ function initApp() {
   resetFormState();
   if(!D.ciclos) D.ciclos = [];
   numV.ciclo_dur = parseInt(localStorage.getItem('naty_ciclo_dur') || '28');
-  document.getElementById('v-ciclo_dur').textContent = numV.ciclo_dur;
+  const vcd = document.getElementById('v-ciclo_dur');
+  if(vcd) vcd.textContent = numV.ciclo_dur;
 
-  // Solo cargar demo si no hay datos locales Y no hay conexión
-  if(!D.checkins.length && !online) seedDemo();
+  // Solo cargar demo si NO hay conexión Y no hay datos locales
+  if(!online && !D.checkins.length) seedDemo();
 
   renderHome();
   renderHistorial();
@@ -1052,12 +1061,17 @@ function setupChips() {
   document.querySelectorAll('.chip[data-f]').forEach(ch=>{
     ch.addEventListener('click',()=>{
       const f=ch.dataset.f, v=ch.dataset.v;
-      const singles=['semag','ejercicio','alcohol','dish_int','exam-res'];
+      const singles=['semag','ejercicio','alcohol','dish_int','exam-res','rep-periodo','rep-espec'];
       if(singles.includes(f)){
         document.querySelectorAll(`.chip[data-f="${f}"]`).forEach(c=>c.classList.remove('sel'));
+        ch.classList.add('sel');
+      } else {
+        ch.classList.toggle('sel');
       }
-      ch.classList.toggle('sel');
       chipV[f]=v;
+    });
+  });
+}
     });
   });
 }
@@ -1688,14 +1702,16 @@ function renderExamenes(){
 let repPeriodo = 14;
 let repEspec = 'general';
 
-function selRepPeriodo(el, v) {
+function selRepPeriodo(el, p) {
   document.querySelectorAll('.chip[data-f="rep-periodo"]').forEach(c=>c.classList.remove('sel'));
-  el.classList.add('sel'); repPeriodo = v;
+  el.classList.add('sel');
+  repPeriodo = p;
   buildPreview();
 }
 function selRepEspec(el, v) {
   document.querySelectorAll('.chip[data-f="rep-espec"]').forEach(c=>c.classList.remove('sel'));
-  el.classList.add('sel'); repEspec = v;
+  el.classList.add('sel');
+  repEspec = v;
   buildPreview();
 }
 
