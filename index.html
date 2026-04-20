@@ -968,7 +968,11 @@ function initApp() {
         // Re-renderizar gráfico después de que la tab sea visible
         setTimeout(()=>renderHistorial(), 100);
       }
-      if(btn.dataset.tab==='reporte') buildPreview();
+      if(btn.dataset.tab==='reporte') {
+        // Asegurar que los toggles del reporte estén activos
+        document.querySelectorAll('[data-rs]').forEach(t=>t.classList.add('on'));
+        buildPreview();
+      }
       if(btn.dataset.tab==='checkin') loadTodayCheckin();
       if(btn.dataset.tab==='config') { renderPesoChart(); setTimeout(()=>renderPesoChart(),100); }
       if(btn.dataset.tab==='gineco') { renderCiclo(); renderEpGineco(); renderDIUbarra(); setTimeout(()=>renderCiclo(),100); }
@@ -984,7 +988,8 @@ function resetFormState() {
   const va=document.getElementById('v-agua');
   if(vh) vh.textContent='7';
   if(va) va.textContent='6';
-  document.querySelectorAll('.toggle.on').forEach(t=>t.classList.remove('on'));
+  // Solo resetear toggles del check-in, NO los del reporte (data-rs)
+  document.querySelectorAll('.toggle.on:not([data-rs])').forEach(t=>t.classList.remove('on'));
   document.querySelectorAll('.sdot.sel').forEach(s=>s.className='sdot');
   document.querySelectorAll('.chip.sel').forEach(c=>c.classList.remove('sel'));
   const nl=document.getElementById('nota-libre');
@@ -1208,16 +1213,46 @@ function renderHome() {
     sg.innerHTML='<div style="color:var(--text3);font-size:13px;padding:8px 0;grid-column:1/-1">Completa tu check-in para ver el resumen del día.</div>';
   }
 
-  // mini chart 14d
+  // mini chart 14d — barras simples
   const last14=D.checkins.slice(0,14).reverse();
   const hc=document.getElementById('home-chart');
-  if(last14.length>=3){
+  const svgH=document.getElementById('home-svg');
+  if(last14.length>=1 && hc && svgH){
     hc.style.display='block';
-    drawSparkline('home-svg','home-tip',last14,[
-      {field:'animo',color:'#c084fc'},
-      {field:'energia',color:'#ec4899'},
-      {field:'sueno_cal',color:'#60a5fa'}
-    ]);
+    setTimeout(()=>{
+      const W=Math.max(svgH.parentElement.clientWidth||0,300);
+      const H=90; const pad={t:8,r:8,b:20,l:18};
+      const cw=W-pad.l-pad.r; const ch=H-pad.t-pad.b;
+      const n=last14.length;
+      const gap=Math.floor(cw/n);
+      const barW=Math.max(6,gap-3);
+      const series=[
+        {field:'animo',color:'#c084fc'},
+        {field:'energia',color:'#ec4899'},
+      ];
+      let html='';
+      [1,3,5].forEach(y=>{
+        const yp=pad.t+ch-((y-1)/4)*ch;
+        html+=`<line x1="${pad.l}" y1="${yp}" x2="${W-pad.r}" y2="${yp}" stroke="rgba(255,255,255,.05)" stroke-width="1"/>`;
+      });
+      last14.forEach((d,i)=>{
+        const x=pad.l+i*gap;
+        const dd=new Date(d.date);
+        series.forEach((s,si)=>{
+          const v=+d[s.field]||0;
+          if(!v) return;
+          const bw=Math.max(3,Math.floor(barW/2)-1);
+          const bx=x+(gap-barW)/2+si*(bw+1);
+          const bh=(v/5)*ch;
+          html+=`<rect x="${bx}" y="${pad.t+ch-bh}" width="${bw}" height="${bh}" rx="2" fill="${s.color}" opacity=".85"/>`;
+        });
+        if(n<=7 || i%Math.ceil(n/5)===0||i===n-1)
+          html+=`<text x="${x+gap/2}" y="${H-3}" text-anchor="middle" font-size="8" fill="rgba(240,234,255,.3)">${dd.getDate()}/${dd.getMonth()+1}</text>`;
+      });
+      svgH.setAttribute('viewBox',`0 0 ${W} ${H}`);
+      svgH.setAttribute('width',W); svgH.setAttribute('height',H);
+      svgH.innerHTML=html;
+    },80);
   }
 }
 
@@ -1314,17 +1349,58 @@ function renderHistorial(){
   empty.style.display='none';
   const data=D.checkins.slice(0,histPeriod).reverse();
 
-  // Chart
+  // Gráfico de barras simple — más legible en celular
   const chartSeries={
-    animo:{field:'animo',color:'#c084fc'},
-    energia:{field:'energia',color:'#ec4899'},
-    sueno:{field:'sueno_cal',color:'#60a5fa'},
-    ansiedad:{field:'ansiedad',color:'#f59e0b'},
-    productiv:{field:'productiv',color:'#10b981'}
+    animo:{field:'animo',color:'#c084fc',label:'Ánimo'},
+    energia:{field:'energia',color:'#ec4899',label:'Energía'},
+    sueno:{field:'sueno_cal',color:'#60a5fa',label:'Sueño'},
+    ansiedad:{field:'ansiedad',color:'#f59e0b',label:'Ansiedad'},
+    productiv:{field:'productiv',color:'#10b981',label:'Productividad'}
   };
-  const s=chartSeries[histChart];
-  if(s&&data.length>=2){
-    setTimeout(()=>drawSparkline('hist-svg','hist-tip',data,[{...s}]),50);
+  const s = chartSeries[histChart];
+  const svgEl = document.getElementById('hist-svg');
+
+  if(s && data.length >= 1 && svgEl) {
+    setTimeout(()=>{
+      const W = Math.max(svgEl.parentElement.clientWidth||0, 300);
+      const H = 120;
+      const pad = {t:10, r:8, b:28, l:20};
+      const cw = W - pad.l - pad.r;
+      const ch = H - pad.t - pad.b;
+      const n = data.length;
+      const barW = Math.max(4, Math.floor(cw/n) - 3);
+      const gap = Math.floor(cw/n);
+
+      let html = '';
+      // Líneas guía
+      [1,2,3,4,5].forEach(y=>{
+        const yp = pad.t + ch - ((y-1)/4)*ch;
+        html += `<text x="${pad.l-2}" y="${yp+3}" text-anchor="end" font-size="8" fill="rgba(240,234,255,.3)">${y}</text>`;
+        html += `<line x1="${pad.l}" y1="${yp}" x2="${W-pad.r}" y2="${yp}" stroke="rgba(255,255,255,.05)" stroke-width="1"/>`;
+      });
+
+      data.forEach((d,i)=>{
+        const v = +d[s.field]||0;
+        const x = pad.l + i*gap + (gap-barW)/2;
+        const barH = v ? (v/5)*ch : 2;
+        const y = pad.t + ch - barH;
+        const alpha = v ? 1 : 0.15;
+        // Barra
+        html += `<rect x="${x}" y="${y}" width="${barW}" height="${barH}" rx="3" fill="${s.color}" opacity="${alpha}"/>`;
+        // Valor encima si hay espacio
+        if(barW >= 12 && v) html += `<text x="${x+barW/2}" y="${y-3}" text-anchor="middle" font-size="9" fill="${s.color}" font-weight="500">${v}</text>`;
+        // Fecha abajo (solo cada N días para no saturar)
+        const dd = new Date(d.date);
+        if(n<=14 || i%Math.ceil(n/7)===0 || i===n-1) {
+          html += `<text x="${x+barW/2}" y="${H-4}" text-anchor="middle" font-size="8" fill="rgba(240,234,255,.35)">${dd.getDate()}/${dd.getMonth()+1}</text>`;
+        }
+      });
+
+      svgEl.setAttribute('viewBox',`0 0 ${W} ${H}`);
+      svgEl.setAttribute('width', W);
+      svgEl.setAttribute('height', H);
+      svgEl.innerHTML = html;
+    }, 80);
   }
 
   // Summary stats
@@ -1605,22 +1681,20 @@ async function saveEp(){
 }
 function renderEpisodios(){
   const el=document.getElementById('ep-list');
-  if(!D.episodios.length){el.innerHTML='';return;}
-  const icons={itu:'🦠',cand:'🌡️',gine:'🌸',spm:'🌙',sex:'💜',ctrl:'📋'};
-  el.innerHTML='<div style="font-size:12px;color:var(--text3);margin-bottom:8px">Episodios registrados</div>'+
-    D.episodios.slice(0,15).map((e,idx)=>{
+  if(!el) return;
+  // Salud muestra SOLO controles médicos, nunca episodios ginecológicos
+  const eps=D.episodios.filter(e=>e.type==='ctrl');
+  if(!eps.length){ el.innerHTML=''; return; }
+  el.innerHTML='<div style="font-size:12px;color:var(--text3);margin-bottom:8px">Controles registrados</div>'+
+    eps.map(e=>{
       const d=new Date(e.date);
-      const tags=Array.isArray(e.data?.sintomas)?e.data.sintomas:[];
+      const globalIdx=D.episodios.indexOf(e);
       return `<div class="hist-day">
         <div class="hist-header">
-          <span class="hist-date">${icons[e.type]||''} ${epCfg[e.type]?.title.replace(/[^\w\sÁÉÍÓÚáéíóúñÑ]/g,'').trim()||e.type}</span>
-          <span style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:12px;color:var(--text3)">${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}</span>
-            <button onclick="deleteEpisodio(${idx})" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">✕</button>
-          </span>
+          <span class="hist-date">📋 Control médico · ${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}</span>
+          <button onclick="deleteEpisodio(${globalIdx})" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">✕</button>
         </div>
-        ${tags.length?`<div class="hist-tags">${tags.map(t=>`<span class="htag sym">${t}</span>`).join('')}</div>`:''}
-        ${e.data?.notas?`<div style="font-size:12px;color:var(--text3);margin-top:6px">${e.data.notas}</div>`:''}
+        ${e.data?.notas||e.data?.ep_notas?`<div style="font-size:12px;color:var(--text3);margin-top:6px">${e.data.notas||e.data.ep_notas}</div>`:''}
       </div>`;
     }).join('');
 }
@@ -1771,11 +1845,39 @@ function buildPreview() {
   if(!data.length) { document.getElementById('rep-preview-content').innerHTML='<i>Sin datos para este período</i>'; return; }
   const st = calcStats(data);
   const sec = getRepSections();
-  const today = new Date().toLocaleDateString('es-CL');
   const desde = new Date(data[0].date).toLocaleDateString('es-CL');
   const hasta = new Date(data[data.length-1].date).toLocaleDateString('es-CL');
   const scoreBar = (v) => v ? '■'.repeat(Math.round(v)) + '□'.repeat(5-Math.round(v)) + ` ${v}/5` : '—';
   const especialidadLabels = {general:'General',ginecologia:'Ginecología',endocrinologia:'Endocrinología',salud_mental:'Salud mental'};
+
+  // Función para generar mini gráfico de barras SVG inline
+  const miniChart = (data, field, color, max=5) => {
+    const n = data.length;
+    if(!n) return '';
+    const W = 280, H = 50, padL = 16, padB = 14, padT = 4, padR = 4;
+    const cw = W-padL-padR, ch = H-padT-padB;
+    const gap = cw/n;
+    const barW = Math.max(3, gap-2);
+    let bars = '';
+    data.forEach((d,i)=>{
+      const v = +d[field]||0;
+      if(!v) return;
+      const x = padL + i*gap + (gap-barW)/2;
+      const bh = (v/max)*ch;
+      const y = padT+ch-bh;
+      bars += `<rect x="${x}" y="${y}" width="${barW}" height="${bh}" rx="2" fill="${color}" opacity="0.85"/>`;
+      if(barW>=10) bars += `<text x="${x+barW/2}" y="${y-2}" text-anchor="middle" font-size="7" fill="${color}">${v}</text>`;
+    });
+    // Etiquetas de fecha cada N días
+    data.forEach((d,i)=>{
+      if(n<=7 || i%Math.ceil(n/5)===0 || i===n-1){
+        const x = padL + i*gap + gap/2;
+        const dd = new Date(d.date);
+        bars += `<text x="${x}" y="${H-1}" text-anchor="middle" font-size="7" fill="rgba(200,180,255,.5)">${dd.getDate()}/${dd.getMonth()+1}</text>`;
+      }
+    });
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block;margin:6px 0">${bars}</svg>`;
+  };
 
   let html = `<div style="font-weight:500;color:var(--text);margin-bottom:8px">
     Informe de Bienestar Personal<br>
@@ -1785,66 +1887,78 @@ function buildPreview() {
   if(sec.resumen) {
     html += `<div style="background:rgba(155,93,229,.1);border-radius:8px;padding:10px 12px;margin-bottom:10px">
       <div style="font-weight:500;color:var(--violet2);margin-bottom:6px">RESUMEN EJECUTIVO</div>
-      <div>Ánimo promedio: ${scoreBar(st.animo.avg)}</div>
-      <div>Energía promedio: ${scoreBar(st.energia.avg)}</div>
-      <div>Sueño: ${st.sueno.avgH}h promedio · calidad ${scoreBar(st.sueno.avgCal)}</div>
-      <div>Días con actividad física: ${st.ejercicio.diasTotal}/${st.n}</div>
-      <div>Días con síntomas semaglutida: ${st.semag.sintDias}/${st.n}</div>
+      <div>Ánimo: ${scoreBar(st.animo.avg)}</div>
+      <div>Energía: ${scoreBar(st.energia.avg)}</div>
+      <div>Sueño: ${st.sueno.avgH}h · calidad ${scoreBar(st.sueno.avgCal)}</div>
+      <div>Actividad física: ${st.ejercicio.diasTotal}/${st.n} días</div>
+      <div>Síntomas semaglutida: ${st.semag.sintDias}/${st.n} días</div>
     </div>`;
   }
   if(sec.animo) {
-    html += `<div style="margin-bottom:8px"><div style="font-weight:500;color:var(--text);margin-bottom:3px">Salud mental y ánimo</div>
-      <div style="color:var(--text3)">Ánimo ${scoreBar(st.animo.avg)} · Ansiedad ${scoreBar(st.ansiedad.avg)} · Productividad ${scoreBar(st.productiv.avg)}</div>
-      <div style="color:var(--text3)">Conexión social: ${st.habitos.socialDias}/${st.n} días</div>
-      ${st.animo.avg && st.animo.avg<=2.5 ? '<div style="color:var(--amber)">⚠ Ánimo bajo sostenido durante el período</div>' : ''}
+    html += `<div style="margin-bottom:10px">
+      <div style="font-weight:500;color:var(--text);margin-bottom:4px">Ánimo y salud mental</div>
+      <div style="font-size:12px;color:var(--text3)">Ánimo promedio: ${scoreBar(st.animo.avg)}</div>
+      ${miniChart(data,'animo','#c084fc')}
+      <div style="font-size:12px;color:var(--text3)">Energía: ${scoreBar(st.energia.avg)} · Ansiedad: ${scoreBar(st.ansiedad.avg)}</div>
+      ${miniChart(data,'energia','#ec4899')}
+      <div style="font-size:12px;color:var(--text3)">Conexión social: ${st.habitos.socialDias}/${st.n} días · Productividad: ${scoreBar(st.productiv.avg)}</div>
+      ${st.animo.avg && st.animo.avg<=2.5 ? '<div style="color:var(--amber);font-size:12px">⚠ Ánimo bajo sostenido</div>' : ''}
     </div>`;
   }
   if(sec.sueno) {
-    html += `<div style="margin-bottom:8px"><div style="font-weight:500;color:var(--text);margin-bottom:3px">Sueño</div>
-      <div style="color:var(--text3)">Promedio ${st.sueno.avgH}h · Calidad ${scoreBar(st.sueno.avgCal)}</div>
-      <div style="color:var(--text3)">Despertó antes de hora: ${st.sueno.despertoPct}% de las noches</div>
-      <div style="color:var(--text3)">Toma magnesio como suplemento</div>
+    html += `<div style="margin-bottom:10px">
+      <div style="font-weight:500;color:var(--text);margin-bottom:4px">Sueño</div>
+      <div style="font-size:12px;color:var(--text3)">Promedio ${st.sueno.avgH}h · calidad ${scoreBar(st.sueno.avgCal)}</div>
+      ${miniChart(data,'sueno_h','#60a5fa',12)}
+      <div style="font-size:12px;color:var(--text3)">Despertó antes de hora: ${st.sueno.despertoPct}% de las noches</div>
     </div>`;
   }
   if(sec.semag) {
-    html += `<div style="margin-bottom:8px"><div style="font-weight:500;color:var(--text);margin-bottom:3px">Tratamiento semaglutida</div>
-      <div style="color:var(--text3)">Días con síntomas: ${st.semag.sintDias}/${st.n} (${Math.round(st.semag.sintDias/st.n*100)}%)</div>
-      <div style="color:var(--text3)">Uso analgésico: ${st.semag.analgesicoDias} días · Domperidona: ${st.semag.domperidonaDias} días</div>
-      ${D.pesos.length>=2 ? `<div style="color:var(--text3)">Peso: de ${D.pesos[D.pesos.length-1].kg} kg a ${D.pesos[0].kg} kg (${(D.pesos[0].kg-D.pesos[D.pesos.length-1].kg).toFixed(1)} kg)</div>` : ''}
+    html += `<div style="margin-bottom:10px">
+      <div style="font-weight:500;color:var(--text);margin-bottom:4px">Semaglutida</div>
+      <div style="font-size:12px;color:var(--text3)">Síntomas: ${st.semag.sintDias}/${st.n} días · Analgésico: ${st.semag.analgesicoDias} · Domperidona: ${st.semag.domperidonaDias}</div>
+      ${D.pesos.length>=2?`<div style="font-size:12px;color:var(--text3)">Peso: ${D.pesos[D.pesos.length-1].kg} → ${D.pesos[0].kg} kg (${(D.pesos[0].kg-D.pesos[D.pesos.length-1].kg).toFixed(1)} kg)</div>`:''}
     </div>`;
   }
   if(sec.gineco) {
-    const epGine = D.episodios.filter(e=>['itu','cand','gine','spm','sex'].includes(e.type) && new Date(e.date)>=new Date(data[0].date));
-    html += `<div style="margin-bottom:8px"><div style="font-weight:500;color:var(--text);margin-bottom:3px">Salud ginecológica</div>
-      <div style="color:var(--text3)">DIU Asertia — insertado noviembre 2024 (sin síntomas de rechazo reportados)</div>
-      <div style="color:var(--text3)">Episodios registrados en el período: ${epGine.length}</div>
-      ${epGine.map(e=>`<div style="color:var(--text3)">· ${new Date(e.date).toLocaleDateString('es-CL')}: ${epCfg[e.type]?.title.replace(/[^\w\sáéíóúñÁÉÍÓÚÑ]/g,'').trim()||e.type}${e.data?.sintomas?.length?' — '+e.data.sintomas.join(', '):''}</div>`).join('')}
-      <div style="color:var(--text3)">Bochornos registrados: ${st.bochornos} días</div>
+    const epGine=D.episodios.filter(e=>['itu','cand','gine','spm','sex'].includes(e.type)&&new Date(e.date)>=new Date(data[0].date));
+    const seen=new Set();
+    const epUniq=epGine.filter(e=>{ const k=e.id||(e.type+'|'+e.date); if(seen.has(k)) return false; seen.add(k); return true; });
+    html += `<div style="margin-bottom:10px">
+      <div style="font-weight:500;color:var(--text);margin-bottom:4px">Salud ginecológica</div>
+      <div style="font-size:12px;color:var(--text3)">DIU Asertia — insertado nov 2024</div>
+      <div style="font-size:12px;color:var(--text3)">Episodios en el período: ${epUniq.length}</div>
+      ${epUniq.map(e=>{
+        const s=[...(e.data?.sintomas||[]),(e.data?.ep_sintomas||[]),(e.data?.tipo||[]),(e.data?.ep_tipo||[])].flat().filter(Boolean);
+        return `<div style="font-size:12px;color:var(--text3)">· ${new Date(e.date).toLocaleDateString('es-CL')}: ${epCfg[e.type]?.title.replace(/[^\w\sáéíóúñÁÉÍÓÚÑ]/g,'').trim()||e.type}${s.length?' — '+s.join(', '):''}</div>`;
+      }).join('')}
+      <div style="font-size:12px;color:var(--text3)">Bochornos: ${st.bochornos} días</div>
     </div>`;
   }
   if(sec.digestion) {
-    html += `<div style="margin-bottom:8px"><div style="font-weight:500;color:var(--text);margin-bottom:3px">Digestión</div>
-      <div style="color:var(--text3)">Deposición registrada: ${st.digestion.depOk}/${st.n} días · Dificultad: ${st.digestion.depDif} días</div>
-      <div style="color:var(--text3)">Hinchazón abdominal: ${st.digestion.hinchazon} días</div>
+    html += `<div style="margin-bottom:10px">
+      <div style="font-weight:500;color:var(--text);margin-bottom:4px">Digestión</div>
+      <div style="font-size:12px;color:var(--text3)">Deposición: ${st.digestion.depOk}/${st.n} días · Dificultad: ${st.digestion.depDif} · Hinchazón: ${st.digestion.hinchazon}</div>
     </div>`;
   }
   if(sec.habitos) {
-    html += `<div style="margin-bottom:8px"><div style="font-weight:500;color:var(--text);margin-bottom:3px">Hábitos</div>
-      <div style="color:var(--text3)">Ejercicio: ${st.ejercicio.diasTotal} días (${st.ejercicio.diasPilates} pilates · ${st.ejercicio.diasCaminata} caminata)</div>
-      <div style="color:var(--text3)">Agua: ${st.habitos.aguaAvg} vasos/día promedio</div>
-      <div style="color:var(--text3)">Alcohol: ${st.habitos.alcDias}/${st.n} días · Dishidrosis: ${st.dishidrosis} días</div>
+    html += `<div style="margin-bottom:10px">
+      <div style="font-weight:500;color:var(--text);margin-bottom:4px">Hábitos</div>
+      <div style="font-size:12px;color:var(--text3)">Ejercicio: ${st.ejercicio.diasTotal} días (${st.ejercicio.diasPilates} pilates · ${st.ejercicio.diasCaminata} caminata)</div>
+      <div style="font-size:12px;color:var(--text3)">Agua: ${st.habitos.aguaAvg} vasos/día · Alcohol: ${st.habitos.alcDias} días</div>
     </div>`;
   }
-  if(sec.examenes && (D.examenes.length||true)) {
-    html += `<div style="margin-bottom:8px"><div style="font-weight:500;color:var(--text);margin-bottom:3px">Exámenes</div>
-      <div style="color:var(--text3)">PAP: nov 2024 — sin alteraciones</div>
-      <div style="color:var(--text3)">Mamografía: 2025 — normal</div>
-      ${D.examenes.map(e=>`<div style="color:var(--text3)">${e.tipo}: ${e.fecha} — ${e.resultado}${e.notas?' ('+e.notas+')':''}</div>`).join('')}
+  if(sec.examenes) {
+    html += `<div style="margin-bottom:10px">
+      <div style="font-weight:500;color:var(--text);margin-bottom:4px">Exámenes</div>
+      <div style="font-size:12px;color:var(--text3)">PAP nov 2024 — sin alteraciones · Mamografía 2025 — normal</div>
+      ${D.examenes.map(e=>`<div style="font-size:12px;color:var(--text3)">${e.tipo} ${e.fecha} — ${e.resultado}${e.notas?' ('+e.notas+')':''}</div>`).join('')}
     </div>`;
   }
   if(st.notas.length) {
-    html += `<div style="margin-bottom:8px"><div style="font-weight:500;color:var(--text);margin-bottom:3px">Notas del período</div>
-      ${st.notas.slice(0,5).map(n=>`<div style="color:var(--text3)">· ${new Date(n.date).toLocaleDateString('es-CL')}: ${n.nota}</div>`).join('')}
+    html += `<div style="margin-bottom:8px">
+      <div style="font-weight:500;color:var(--text);margin-bottom:4px">Notas</div>
+      ${st.notas.slice(0,5).map(n=>`<div style="font-size:12px;color:var(--text3)">· ${new Date(n.date).toLocaleDateString('es-CL')}: ${n.nota}</div>`).join('')}
     </div>`;
   }
   document.getElementById('rep-preview-content').innerHTML = html;
@@ -2393,24 +2507,41 @@ function renderEpGineco() {
   const el = document.getElementById('ep-gine-list');
   if(!el) return;
   const tipos = ['itu','cand','gine','spm','sex'];
-  const eps = D.episodios.filter(e=>tipos.includes(e.type));
-  if(!eps.length) { el.innerHTML='<div style="font-size:12px;color:var(--text3);padding:8px 0">Sin episodios registrados aún.</div>'; return; }
-  const icons = {itu:'🦠',cand:'🌡️',gine:'🌸',spm:'🌙',sex:'💜'};
-  el.innerHTML = '<div style="font-size:12px;color:var(--text3);margin-bottom:8px">Episodios registrados</div>' +
-    eps.slice(0,15).map((e,idx)=>{
-      const d = new Date(e.date);
-      const tags = Array.isArray(e.data?.sintomas) ? e.data.sintomas : [];
-      const globalIdx = D.episodios.indexOf(e);
+  // Deduplicar — usar id de Supabase si existe, si no usar combinación de campos
+  const seen = new Set();
+  const eps = D.episodios.filter(e=>{
+    if(!tipos.includes(e.type)) return false;
+    const key = e.id || (e.type+'|'+e.date+'|'+JSON.stringify(e.data));
+    if(seen.has(key)) return false;
+    seen.add(key); return true;
+  });
+  if(!eps.length){
+    el.innerHTML='<div style="font-size:12px;color:var(--text3);padding:8px 0">Sin episodios registrados aún.</div>';
+    return;
+  }
+  const icons={itu:'🦠',cand:'🌡️',gine:'🌸',spm:'🌙',sex:'💜'};
+  el.innerHTML='<div style="font-size:12px;color:var(--text3);margin-bottom:8px">Episodios registrados</div>'+
+    eps.map(e=>{
+      const d=new Date(e.date);
+      const globalIdx=D.episodios.indexOf(e);
+      // Combinar todos los campos posibles de síntomas
+      const allSintomas=[
+        ...(Array.isArray(e.data?.sintomas)?e.data.sintomas:[]),
+        ...(Array.isArray(e.data?.ep_sintomas)?e.data.ep_sintomas:[]),
+        ...(Array.isArray(e.data?.tipo)?e.data.tipo:[]),
+        ...(Array.isArray(e.data?.ep_tipo)?e.data.ep_tipo:[]),
+      ].filter((v,i,a)=>v&&a.indexOf(v)===i);
+      const notas=e.data?.notas||e.data?.ep_notas||'';
       return `<div class="hist-day">
         <div class="hist-header">
-          <span class="hist-date">${icons[e.type]||''} ${epCfg[e.type]?.title.replace(/[^\w\sáéíóúñÁÉÍÓÚÑ]/g,'').trim()||e.type}</span>
+          <span class="hist-date">${icons[e.type]} ${epCfg[e.type]?.title.replace(/[^\w\sáéíóúñÁÉÍÓÚÑ]/g,'').trim()||e.type}</span>
           <span style="display:flex;align-items:center;gap:6px">
             <span style="font-size:12px;color:var(--text3)">${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}</span>
             <button onclick="deleteEpisodio(${globalIdx})" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">✕</button>
           </span>
         </div>
-        ${tags.length?`<div class="hist-tags">${tags.map(t=>`<span class="htag sym">${t}</span>`).join('')}</div>`:''}
-        ${e.data?.notas?`<div style="font-size:12px;color:var(--text3);margin-top:6px">${e.data.notas}</div>`:''}
+        ${allSintomas.length?`<div class="hist-tags">${allSintomas.map(t=>`<span class="htag sym">${t}</span>`).join('')}</div>`:''}
+        ${notas?`<div style="font-size:12px;color:var(--text3);margin-top:6px">${notas}</div>`:''}
       </div>`;
     }).join('');
 }
