@@ -1806,17 +1806,40 @@ function selRepPeriodo(el, p) {
   repPeriodo = p;
   buildPreview();
 }
+
+// Secciones por especialidad
+const ESPEC_SECTIONS = {
+  general:        {resumen:true, animo:true, sueno:true, semag:true, gineco:true, digestion:true, habitos:true, examenes:true},
+  ginecologia:    {resumen:true, animo:false, sueno:false, semag:false, gineco:true, digestion:false, habitos:false, examenes:true},
+  endocrinologia: {resumen:true, animo:true, sueno:true, semag:true, gineco:false, digestion:true, habitos:true, examenes:true},
+  salud_mental:   {resumen:true, animo:true, sueno:true, semag:false, gineco:false, digestion:false, habitos:true, examenes:false},
+};
+
+function getRepSections() {
+  // Si hay especialidad activa, usar su preset — ignorar toggles manuales
+  const preset = ESPEC_SECTIONS[repEspec];
+  if(preset) return preset;
+  // Si no hay preset, leer toggles manuales
+  const s = {};
+  document.querySelectorAll('[data-rs]').forEach(el => { s[el.dataset.rs] = el.classList.contains('on'); });
+  return s;
+}
+
 function selRepEspec(el, v) {
   document.querySelectorAll('.chip[data-f="rep-espec"]').forEach(c=>c.classList.remove('sel'));
   el.classList.add('sel');
   repEspec = v;
+  // Actualizar toggles visualmente según la especialidad
+  const preset = ESPEC_SECTIONS[v];
+  if(preset) {
+    document.querySelectorAll('[data-rs]').forEach(t=>{
+      const key = t.dataset.rs;
+      if(preset[key] !== undefined) {
+        preset[key] ? t.classList.add('on') : t.classList.remove('on');
+      }
+    });
+  }
   buildPreview();
-}
-
-function getRepSections() {
-  const s = {};
-  document.querySelectorAll('[data-rs]').forEach(el => { s[el.dataset.rs] = el.classList.contains('on'); });
-  return s;
 }
 
 function calcStats(data) {
@@ -1995,6 +2018,392 @@ function buildPDF() {
   const desde = new Date(data[0].date).toLocaleDateString('es-CL');
   const hasta = new Date(data[data.length-1].date).toLocaleDateString('es-CL');
   const today = new Date().toLocaleDateString('es-CL');
+  const especialidadLabels = {general:'General',ginecologia:'Ginecología',endocrinologia:'Endocrinología',salud_mental:'Salud Mental'};
+
+  const W=210, mar=16, cw=W-mar*2;
+  let y = mar;
+  let pageNum = 1;
+
+  // ── Helpers ──
+  const newPage = () => {
+    // Footer de página actual
+    doc.setFillColor(248,246,255);
+    doc.rect(0,284,W,13,'F');
+    doc.setDrawColor(200,190,230); doc.line(mar,284,W-mar,284);
+    doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(140,120,180);
+    doc.text('Natalia · Informe Naty Bienestar · Generado: '+today, mar, 290);
+    doc.text('Pág. '+pageNum, W-mar, 290, {align:'right'});
+    doc.text('Documento confidencial. No reemplaza evaluación médica profesional.', mar, 294);
+    pageNum++;
+    doc.addPage(); y = mar;
+  };
+  const chk = (h=6) => { if(y+h > 282) newPage(); };
+  const sf = (sz, style='normal', col=[30,30,30]) => {
+    doc.setFontSize(sz); doc.setFont('helvetica',style); doc.setTextColor(...col);
+  };
+  const txt = (t, x, dy=5.5, maxW=cw, col=[40,40,40]) => {
+    doc.setTextColor(...col);
+    const lines = doc.splitTextToSize(String(t||''), maxW);
+    lines.forEach(l => { chk(); doc.text(l, x, y); y += dy; });
+    doc.setTextColor(40,40,40);
+  };
+  const dataRow = (label, val) => {
+    chk();
+    sf(9,'bold',[80,80,80]); doc.text(label, mar+2, y);
+    sf(9,'normal',[40,40,40]);
+    const lines = doc.splitTextToSize(String(val||'—'), cw-56);
+    doc.text(lines[0], mar+56, y);
+    y += 5.5;
+  };
+  const section = (title) => {
+    chk(10); y+=3;
+    doc.setFillColor(80,40,160);
+    doc.rect(mar, y-4.5, cw, 8, 'F');
+    doc.setFillColor(220,200,255);
+    doc.rect(mar, y-4.5, 3, 8, 'F');
+    sf(10,'bold',[255,255,255]);
+    doc.text(title, mar+6, y); y+=8;
+  };
+  const subSection = (title) => {
+    chk(8); y+=2;
+    sf(9,'bold',[80,40,160]);
+    doc.text(title, mar+2, y);
+    doc.setDrawColor(180,160,220); doc.line(mar+2,y+1,W-mar,y+1);
+    y+=6;
+  };
+  const alertBox = (msg, r=180,g=60,b=0) => {
+    chk(10);
+    doc.setFillColor(255,245,220); doc.setDrawColor(r,g,b);
+    doc.roundedRect(mar, y-4, cw, 8, 1,1,'FD');
+    sf(8.5,'bold',[r,g,b]);
+    doc.text('⚠  '+msg, mar+3, y+1); y+=10;
+  };
+  const divider = () => { chk(); doc.setDrawColor(210,200,235); doc.line(mar,y,W-mar,y); y+=5; };
+  const scoreText = v => v ? v+'/5' : '—';
+
+  // Episodios gineco deduplicados
+  const epGine = (() => {
+    const seen = new Set();
+    return D.episodios.filter(e=>{
+      if(!['itu','cand','gine','spm','sex'].includes(e.type)) return false;
+      const k = e.id||(e.type+'|'+e.date);
+      if(seen.has(k)) return false; seen.add(k); return true;
+    });
+  })();
+  const epEnPeriodo = epGine.filter(e=>new Date(e.date)>=new Date(data[0].date));
+  const getSintomas = (e) => [
+    ...(Array.isArray(e.data?.sintomas)?e.data.sintomas:[]),
+    ...(Array.isArray(e.data?.ep_sintomas)?e.data.ep_sintomas:[]),
+    ...(Array.isArray(e.data?.tipo)?e.data.tipo:[]),
+    ...(Array.isArray(e.data?.ep_tipo)?e.data.ep_tipo:[]),
+  ].filter((v,i,a)=>v&&a.indexOf(v)===i);
+
+  // Tendencia
+  const trend = (field) => {
+    if(data.length < 4) return null;
+    const mid = Math.floor(data.length/2);
+    const a1 = data.slice(0,mid).filter(c=>c[field]).map(c=>+c[field]);
+    const a2 = data.slice(mid).filter(c=>c[field]).map(c=>+c[field]);
+    if(!a1.length||!a2.length) return null;
+    const d = (a2.reduce((a,b)=>a+b)/a2.length) - (a1.reduce((a,b)=>a+b)/a1.length);
+    if(Math.abs(d)<0.3) return 'Estable';
+    return d>0 ? '↑ Mejorando' : '↓ Empeorando';
+  };
+
+  // ══════════════════════════════════════
+  // PORTADA
+  // ══════════════════════════════════════
+  doc.setFillColor(248,246,255);
+  doc.rect(0,0,W,50,'F');
+  doc.setFillColor(80,40,160);
+  doc.rect(0,0,5,50,'F');
+  sf(17,'bold',[50,20,130]);
+  doc.text('Informe de Bienestar Personal', mar+4, 18);
+  sf(10,'normal',[80,60,140]);
+  doc.text('Paciente: Natalia', mar+4, 27);
+  doc.text('Período: '+desde+' al '+hasta+' · '+data.length+' días registrados', mar+4, 33);
+  doc.text('Especialidad: '+especialidadLabels[repEspec||'general'], mar+4, 39);
+  doc.text('Generado: '+today, mar+4, 45);
+  y = 58;
+
+  // ══════════════════════════════════════
+  // ALERTAS CLÍNICAS
+  // ══════════════════════════════════════
+  const alertas = [];
+  if(st.animo.avg && st.animo.avg<=2.5) alertas.push(['Ánimo bajo sostenido ('+st.animo.avg+'/5) — evaluar salud mental',180,60,0]);
+  if(epGine.filter(e=>e.type==='itu').length>=2) alertas.push(['ITU recurrente: '+epGine.filter(e=>e.type==='itu').length+' episodios — considerar estudio urológico',180,30,30]);
+  if(epGine.filter(e=>e.type==='cand').length>=2) alertas.push(['Candidiasis recurrente: '+epGine.filter(e=>e.type==='cand').length+' episodios — evaluar causa subyacente',180,30,30]);
+  if(st.sueno.avgH && st.sueno.avgH<6) alertas.push(['Sueño insuficiente: promedio '+st.sueno.avgH+'h/noche — evaluar higiene del sueño',160,100,0]);
+  if(st.bochornos>=5) alertas.push(['Bochornos frecuentes: '+st.bochornos+' días — evaluar perfil hormonal',130,50,160]);
+  if(alertas.length) {
+    section('ALERTAS CLÍNICAS');
+    alertas.forEach(([m,r,g,b])=>alertBox(m,r,g,b));
+    divider();
+  }
+
+  // ══════════════════════════════════════
+  // RESUMEN EJECUTIVO
+  // ══════════════════════════════════════
+  if(sec.resumen) {
+    section('RESUMEN EJECUTIVO');
+    // Tabla 2 columnas
+    const cols = [
+      ['Ánimo promedio', scoreText(st.animo.avg), 'Energía promedio', scoreText(st.energia.avg)],
+      ['Calidad de sueño', scoreText(st.sueno.avgCal), 'Horas de sueño', (st.sueno.avgH||'—')+'h'],
+      ['Actividad física', st.ejercicio.diasTotal+'/'+data.length+' días', 'Sínt. semaglutida', st.semag.sintDias+'/'+data.length+' días'],
+      ['Episodios gineco.', epEnPeriodo.length+' en el período', 'Bochornos', st.bochornos+' días'],
+    ];
+    const hw = cw/2-2;
+    cols.forEach(([l1,v1,l2,v2])=>{
+      chk();
+      sf(8.5,'bold',[80,80,80]); doc.text(l1+':', mar+2, y);
+      sf(8.5,'normal',[30,30,30]); doc.text(String(v1), mar+42, y);
+      sf(8.5,'bold',[80,80,80]); doc.text(l2+':', mar+hw+4, y);
+      sf(8.5,'normal',[30,30,30]); doc.text(String(v2), mar+hw+44, y);
+      y+=5.5;
+    });
+    divider();
+  }
+
+  // ══════════════════════════════════════
+  // SALUD MENTAL Y EMOCIONAL
+  // ══════════════════════════════════════
+  if(sec.animo) {
+    section('SALUD MENTAL Y EMOCIONAL');
+    subSection('Promedios del período');
+    dataRow('Ánimo', scoreText(st.animo.avg)+' · Tendencia: '+(trend('animo')||'insuficientes datos'));
+    dataRow('Energía', scoreText(st.energia.avg)+' · Tendencia: '+(trend('energia')||'insuficientes datos'));
+    dataRow('Ansiedad', scoreText(st.ansiedad.avg)+' (1=baja, 5=alta)');
+    dataRow('Concentración', scoreText(calcStats(data).productiv.avg));
+    dataRow('Productividad percibida', scoreText(st.productiv.avg));
+    dataRow('Conexión social', st.habitos.socialDias+'/'+data.length+' días');
+    dataRow('Niebla mental (conc. ≤2)', data.filter(c=>c.concentracion&&c.concentracion<=2).length+' días');
+
+    subSection('Distribución del ánimo');
+    const animoDist=[0,0,0,0,0];
+    data.forEach(c=>{if(c.animo) animoDist[c.animo-1]++;});
+    const aLabels=['Muy bajo (1)','Bajo (2)','Neutral (3)','Bueno (4)','Excelente (5)'];
+    animoDist.forEach((n,i)=>{
+      if(!n) return;
+      chk();
+      sf(8.5,'normal',[60,60,60]);
+      doc.text(aLabels[i]+':', mar+2, y);
+      doc.text(n+' día'+(n>1?'s':'')+' ('+Math.round(n/data.length*100)+'%)', mar+48, y);
+      y+=5;
+    });
+
+    // Tabla de registro diario ánimo
+    subSection('Registro diario');
+    chk(8);
+    // Encabezado tabla
+    doc.setFillColor(230,220,250);
+    doc.rect(mar, y-4, cw, 6, 'F');
+    sf(7.5,'bold',[60,40,120]);
+    doc.text('Fecha', mar+1, y); doc.text('Ánimo', mar+22, y);
+    doc.text('Energía', mar+36, y); doc.text('Ansiedad', mar+52, y);
+    doc.text('Sueño h', mar+70, y); doc.text('Cal.', mar+86, y);
+    doc.text('Ejercicio', mar+98, y); doc.text('Síntomas semagl.', mar+122, y);
+    y+=6;
+    data.forEach((d,i)=>{
+      chk(6);
+      if(i%2===0){ doc.setFillColor(248,246,255); doc.rect(mar,y-4,cw,5.5,'F'); }
+      sf(7.5,'normal',[40,40,40]);
+      const dd = new Date(d.date).toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit'});
+      doc.text(dd, mar+1, y);
+      doc.text(d.animo?String(d.animo):'—', mar+24, y);
+      doc.text(d.energia?String(d.energia):'—', mar+38, y);
+      doc.text(d.ansiedad?String(d.ansiedad):'—', mar+55, y);
+      doc.text(d.sueno_h?String(d.sueno_h):'—', mar+72, y);
+      doc.text(d.sueno_cal?String(d.sueno_cal):'—', mar+88, y);
+      doc.text(d.ejercicio&&d.ejercicio!=='ninguno'?d.ejercicio:'—', mar+98, y);
+      const semag = d.semag&&d.semag!=='ninguno'?d.semag:'—';
+      doc.text(semag, mar+122, y);
+      y+=5.5;
+    });
+    divider();
+  }
+
+  // ══════════════════════════════════════
+  // SUEÑO
+  // ══════════════════════════════════════
+  if(sec.sueno) {
+    section('SUEÑO');
+    dataRow('Horas promedio/noche', (st.sueno.avgH||'—')+'h');
+    dataRow('Calidad promedio', scoreText(st.sueno.avgCal)+' · Tendencia: '+(trend('sueno_cal')||'insuficientes datos'));
+    dataRow('Noches con <6h', data.filter(c=>c.sueno_h&&c.sueno_h<6).length+' de '+data.length);
+    dataRow('Noches con ≥7h', data.filter(c=>c.sueno_h&&c.sueno_h>=7).length+' de '+data.length);
+    dataRow('Despertó antes de hora', data.filter(c=>c.desperto).length+' noches ('+st.sueno.despertoPct+'%)');
+    dataRow('Magnesio nocturno', data.filter(c=>c.magnesio).length+' días registrados');
+    divider();
+  }
+
+  // ══════════════════════════════════════
+  // SEMAGLUTIDA
+  // ══════════════════════════════════════
+  if(sec.semag) {
+    section('TRATAMIENTO SEMAGLUTIDA');
+    dataRow('Días con síntomas', st.semag.sintDias+'/'+data.length+' ('+Math.round(st.semag.sintDias/data.length*100)+'%)');
+    const semTipos={nauseas:'Náuseas',cefalea:'Cefalea',fatiga:'Fatiga',mareo:'Mareo'};
+    Object.entries(semTipos).forEach(([k,v])=>{
+      const n=data.filter(c=>c.semag===k).length;
+      if(n) dataRow('  · '+v, n+' días');
+    });
+    dataRow('Uso de analgésico de rescate', st.semag.analgesicoDias+' días');
+    dataRow('Uso de domperidona', st.semag.domperidonaDias+' días');
+    dataRow('Apetito/saciedad promedio', scoreText(calcStats(data).productiv.avg));
+    y+=2;
+    if(D.pesos.length>=2) {
+      subSection('Evolución del peso');
+      const pOrd = [...D.pesos].sort((a,b)=>new Date(a.date)-new Date(b.date));
+      dataRow('Peso inicial registrado', pOrd[0].kg+' kg ('+new Date(pOrd[0].date).toLocaleDateString('es-CL')+')');
+      dataRow('Peso último registrado', pOrd[pOrd.length-1].kg+' kg ('+new Date(pOrd[pOrd.length-1].date).toLocaleDateString('es-CL')+')');
+      const diff=(pOrd[pOrd.length-1].kg-pOrd[0].kg).toFixed(1);
+      dataRow('Variación total', (diff>0?'+':'')+diff+' kg');
+      // Tabla de pesos
+      y+=2; sf(8,'bold',[80,80,80]);
+      doc.text('Fecha', mar+2, y); doc.text('Peso (kg)', mar+40, y); y+=5;
+      pOrd.forEach((p,i)=>{
+        chk();
+        if(i%2===0){doc.setFillColor(248,246,255);doc.rect(mar,y-4,cw,5.5,'F');}
+        sf(8,'normal',[40,40,40]);
+        doc.text(new Date(p.date).toLocaleDateString('es-CL'), mar+2, y);
+        doc.text(String(p.kg), mar+40, y);
+        y+=5.5;
+      });
+    } else if(D.pesos.length===1) {
+      dataRow('Peso registrado', D.pesos[0].kg+' kg ('+new Date(D.pesos[0].date).toLocaleDateString('es-CL')+')');
+    }
+    divider();
+  }
+
+  // ══════════════════════════════════════
+  // SALUD GINECOLÓGICA
+  // ══════════════════════════════════════
+  if(sec.gineco) {
+    section('SALUD GINECOLÓGICA Y CICLO');
+    subSection('Antecedentes y dispositivos');
+    dataRow('DIU Asertia', 'Insertado: noviembre 2024 · Vencimiento: noviembre 2029');
+    dataRow('PAP', 'Noviembre 2024 — Sin alteraciones');
+    dataRow('Mamografía', '2025 — Normal');
+    dataRow('Bochornos/sofocos', st.bochornos+' días en el período');
+    y+=2;
+
+    const diasPeriodo=data.filter(c=>c.periodo_activo).length;
+    const diasFlujo={manchado:0,leve:0,moderado:0,abundante:0};
+    data.forEach(c=>{if(c.flujo&&diasFlujo[c.flujo]!==undefined) diasFlujo[c.flujo]++;});
+    if(diasPeriodo||Object.values(diasFlujo).some(v=>v>0)) {
+      subSection('Registro de ciclo');
+      dataRow('Días con período activo', diasPeriodo);
+      if(diasFlujo.manchado) dataRow('  · Flujo manchado', diasFlujo.manchado+' días');
+      if(diasFlujo.leve) dataRow('  · Flujo leve', diasFlujo.leve+' días');
+      if(diasFlujo.moderado) dataRow('  · Flujo moderado', diasFlujo.moderado+' días');
+      if(diasFlujo.abundante) dataRow('  · Flujo abundante', diasFlujo.abundante+' días');
+      dataRow('  · Días con dolor ≥3/5', data.filter(c=>c.dolor_ciclo&&c.dolor_ciclo>=3).length);
+    }
+    y+=2;
+
+    subSection('Episodios clínicos en el período');
+    if(epEnPeriodo.length) {
+      // Encabezado
+      doc.setFillColor(230,220,250); doc.rect(mar,y-4,cw,6,'F');
+      sf(8,'bold',[60,40,120]);
+      doc.text('Fecha',mar+1,y); doc.text('Tipo',mar+22,y); doc.text('Síntomas / Notas',mar+70,y); y+=6;
+      epEnPeriodo.forEach((e,i)=>{
+        chk(7);
+        if(i%2===0){doc.setFillColor(248,246,255);doc.rect(mar,y-4,cw,6,'F');}
+        sf(8,'normal',[40,40,40]);
+        doc.text(new Date(e.date).toLocaleDateString('es-CL'), mar+1, y);
+        const nombre=(epCfg[e.type]?.title.replace(/[^\w\sáéíóúñÁÉÍÓÚÑ]/g,'').trim()||e.type);
+        doc.text(nombre.substring(0,20), mar+22, y);
+        const sint=getSintomas(e).join(', ')||(e.data?.notas||e.data?.ep_notas||'');
+        doc.text(doc.splitTextToSize(sint,cw-56)[0], mar+70, y);
+        y+=6;
+      });
+    } else {
+      sf(9,'normal',[100,100,100]);
+      txt('Sin episodios ginecológicos en el período analizado.', mar+2, 5);
+    }
+    y+=2;
+
+    subSection('Resumen histórico total registrado');
+    dataRow('ITU', epGine.filter(e=>e.type==='itu').length+' episodios');
+    dataRow('Candidiasis', epGine.filter(e=>e.type==='cand').length+' episodios');
+    dataRow('Síntoma ginecológico', epGine.filter(e=>e.type==='gine').length+' episodios');
+    dataRow('SPM', epGine.filter(e=>e.type==='spm').length+' episodios');
+    divider();
+  }
+
+  // ══════════════════════════════════════
+  // DIGESTIÓN
+  // ══════════════════════════════════════
+  if(sec.digestion) {
+    section('DIGESTIÓN');
+    dataRow('Deposición registrada', st.digestion.depOk+'/'+data.length+' días');
+    dataRow('Con dificultad/esfuerzo', st.digestion.depDif+' días');
+    dataRow('Hinchazón abdominal', st.digestion.hinchazon+' días');
+    dataRow('Uso de fibra', data.filter(c=>c.fibra).length+' días');
+    divider();
+  }
+
+  // ══════════════════════════════════════
+  // HÁBITOS
+  // ══════════════════════════════════════
+  if(sec.habitos) {
+    section('HÁBITOS Y ACTIVIDAD FÍSICA');
+    dataRow('Actividad física', st.ejercicio.diasTotal+'/'+data.length+' días ('+Math.round(st.ejercicio.diasTotal/data.length*100)+'%)');
+    if(st.ejercicio.diasPilates) dataRow('  · Pilates', st.ejercicio.diasPilates+' sesiones');
+    if(st.ejercicio.diasCaminata) dataRow('  · Caminata', st.ejercicio.diasCaminata+' veces');
+    dataRow('Hidratación promedio', (st.habitos.aguaAvg||'—')+' vasos/día');
+    dataRow('Días con consumo de alcohol', st.habitos.alcDias+'/'+data.length+' días');
+    dataRow('Dolor de cabeza', data.filter(c=>c.dcabeza).length+' días');
+    dataRow('Dolor corporal/articular', data.filter(c=>c.dcorporal).length+' días');
+    dataRow('Dishidrosis en manos', st.dishidrosis+' días');
+    const relDias=data.filter(c=>c.relaciones).length;
+    if(relDias) dataRow('Relaciones sexuales', relDias+' días registrados');
+    divider();
+  }
+
+  // ══════════════════════════════════════
+  // EXÁMENES
+  // ══════════════════════════════════════
+  if(sec.examenes) {
+    section('EXÁMENES Y CONTROLES MÉDICOS');
+    txt('· PAP: noviembre 2024 — Sin alteraciones', mar+2, 5.5);
+    txt('· Mamografía: 2025 — Normal', mar+2, 5.5);
+    D.examenes.forEach(e=>{
+      chk();
+      txt('· '+e.tipo+(e.fecha?' ('+e.fecha+')':'')+': '+e.resultado+(e.notas?' — '+e.notas:''), mar+2, 5.5, cw-4);
+      if(e.proximo){ sf(8,'italic',[100,80,160]); txt('  Próximo control: '+new Date(e.proximo).toLocaleDateString('es-CL'), mar+4, 5, cw-8); }
+    });
+    divider();
+  }
+
+  // ══════════════════════════════════════
+  // NOTAS
+  // ══════════════════════════════════════
+  if(st.notas.length) {
+    section('NOTAS DEL PERÍODO');
+    st.notas.slice(0,15).forEach(n=>{
+      chk();
+      sf(8.5,'normal',[60,60,60]);
+      txt('· '+new Date(n.date).toLocaleDateString('es-CL')+': '+n.nota, mar+2, 5.5, cw-4);
+    });
+  }
+
+  // ══════════════════════════════════════
+  // FOOTER ÚLTIMA PÁGINA
+  // ══════════════════════════════════════
+  doc.setFillColor(248,246,255);
+  doc.rect(0,284,W,13,'F');
+  doc.setDrawColor(200,190,230); doc.line(mar,284,W-mar,284);
+  sf(7.5,'normal',[140,120,180]);
+  doc.text('Natalia · Informe Naty Bienestar · Generado: '+today, mar, 290);
+  doc.text('Pág. '+pageNum, W-mar, 290, {align:'right'});
+  doc.text('Documento confidencial. No reemplaza evaluación médica profesional.', mar, 294);
+
+  doc.save('Informe_Bienestar_Natalia_'+today.replace(/\//g,'-')+'.pdf');
+  showToast('✓ PDF descargado');
+}
 
   const W=210, mar=16, cw=W-mar*2;
   let y = mar;
@@ -2343,8 +2752,6 @@ function buildPDF() {
     sf(7.5,'normal',[140,120,180]);
     doc.text('Natalia · Informe Naty Bienestar · '+today+' · Pág. '+i+'/'+pages, mar, 291);
     doc.text('Documento de uso personal y confidencial. No reemplaza evaluación médica profesional.', mar, 295);
-  }
-
   doc.save('Informe_Bienestar_Natalia_'+today.replace(/\//g,'-')+'.pdf');
   showToast('✓ PDF descargado');
 }
